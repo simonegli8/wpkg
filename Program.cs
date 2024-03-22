@@ -12,7 +12,7 @@ namespace WindowsPackager
             "Package: com.yourcompany.identifier",
             "Name: Name of the product",
             "Depends: ",
-            "Architecture: iphoneos-arm",
+            "Architecture: any",
             "Description: This is a sample short description",
             "Maintainer: Maintainer Name",
             "Author: Author Name",
@@ -137,7 +137,7 @@ namespace WindowsPackager
                 passed++;
             }
             // check if we have a control file
-            if (File.Exists(directory + "\\control")) {
+            if (File.Exists(directory + "\\DEBIAN\\control")) {
                 passed++;
             }
             // check if our struct matches
