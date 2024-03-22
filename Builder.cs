@@ -83,7 +83,7 @@ namespace WindowsPackager
 			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
 			// fix str (mandatory hotfix due to SharpZipLib)
-			dataTar.RootPath = directory.Replace('\\', '/');
+			dataTar.RootPath = new DirectoryInfo(directory).FullName.Replace('\\', '/');
 			if (dataTar.RootPath.EndsWith("/"))
 			{
 				dataTar.RootPath = dataTar.RootPath.Remove(dataTar.RootPath.Length - 1);
@@ -111,7 +111,7 @@ namespace WindowsPackager
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
 			// fix str (mandatory hotfix due to SharpZipLib)
-			controlTar.RootPath = (directory+"\\DEBIAN").Replace('\\', '/');
+			controlTar.RootPath = new DirectoryInfo(directory+"\\DEBIAN").FullName.Replace('\\', '/');
 			if (controlTar.RootPath.EndsWith("/"))
 			{
 				controlTar.RootPath = controlTar.RootPath.Remove(controlTar.RootPath.Length - 1);
