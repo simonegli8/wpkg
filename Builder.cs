@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using WindowsPackager.ARFileFormat;
 using ICSharpCode.SharpZipLib.Tar;
+using System.IO.Compression;
 
 namespace WindowsPackager
 {
@@ -30,12 +31,14 @@ namespace WindowsPackager
 
 			Version DebianVersion = new Version(2, 0);
 			Stream DebFileStream = new MemoryStream();
+
 			Stream ControlAsStream = CreateStream(WorkingDirectory, 0);
 			Stream DataAsStream = CreateStream(WorkingDirectory, 1);
+
 			ARFileCreator.WriteMagic(DebFileStream);
 			ARFileCreator.WriteEntry(DebFileStream, "debian-binary", ArFileMode, DebianVersion + "\n");
-			ARFileCreator.WriteEntry(DebFileStream, "control.tar", ArFileMode, ControlAsStream);
-			ARFileCreator.WriteEntry(DebFileStream, "data.tar", ArFileMode, DataAsStream);
+			ARFileCreator.WriteEntry(DebFileStream, "control.tar.gz", ArFileMode, ControlAsStream);
+			ARFileCreator.WriteEntry(DebFileStream, "data.tar.gz", ArFileMode, DataAsStream);
 
 			var fs = File.Create(WorkingDirectory + "\\" + DebFileName);
 			DebFileStream.Seek(0, SeekOrigin.Begin);
@@ -47,19 +50,24 @@ namespace WindowsPackager
 
 			File.Delete(WorkingDirectory + "\\control.tar");
 			File.Delete(WorkingDirectory + "\\data.tar");
+			File.Delete(WorkingDirectory + "\\control.tar.gz");
+			File.Delete(WorkingDirectory + "\\data.tar.gz");
 		}
 
 		public static void AddToTar(TarArchive arch, FileSystemInfo info)
 		{
 			TarEntry entry = TarEntry.CreateEntryFromFile(info.FullName);
+
+			if (entry.Name.StartsWith(arch.RootPath+"/")) entry.Name = "./"+entry.Name.Substring(arch.RootPath.Length+1);
 			entry.UserId = 0;
 			entry.UserName = "root";
 			entry.GroupId = 0;
 			entry.GroupName = "root";
 			if (info is FileInfo) {
-				if (info.FullName.Contains("/usr/bin/") || info.FullName.EndsWith(".exe")) entry.TarHeader.Mode = 0755;
-				else entry.TarHeader.Mode = 0644;
-			} else entry.TarHeader.Mode = 0755;
+				if (entry.Name.Contains("/bin/") || info.FullName.EndsWith(".exe") ||
+					info.Name == "preinst" || info.Name == "postinst" || info.Name == "prerm" || info.Name == "postrm") entry.TarHeader.Mode = Convert.ToInt32("755", 8);
+				else entry.TarHeader.Mode = Convert.ToInt32("644", 8);
+			} else entry.TarHeader.Mode = Convert.ToInt32("755", 8);
 			arch.WriteEntry(entry, false);
 
 			if (info is DirectoryInfo dir)
@@ -103,7 +111,7 @@ namespace WindowsPackager
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
 			// fix str (mandatory hotfix due to SharpZipLib)
-			controlTar.RootPath = directory.Replace('\\', '/');
+			controlTar.RootPath = (directory+"\\DEBIAN").Replace('\\', '/');
 			if (controlTar.RootPath.EndsWith("/"))
 			{
 				controlTar.RootPath = controlTar.RootPath.Remove(controlTar.RootPath.Length - 1);
@@ -111,7 +119,7 @@ namespace WindowsPackager
 
 			// generate filename
 			var control = File.ReadAllText(directory + "\\DEBIAN\\control");
-			DebFileName = Regex.Match(control, "(?<=^Package:\\s*).*$", RegexOptions.Multiline).Value + ".deb";
+			DebFileName = Regex.Match(control, "(?<=^Package:\\s*)[^\\s]+.*$", RegexOptions.Multiline).Value + ".deb";
 			Console.WriteLine("Building " + DebFileName + " ...");
 
 			// scan for eligible control.tar entries & add them
@@ -119,12 +127,12 @@ namespace WindowsPackager
 			foreach (var item in files)
 			{
 				var fn = item.Name;
-				if (fn.Equals("control") || fn.Equals("preinst") || fn.Equals("postinst") || fn.Equals("prerm") || fn.Equals("postrm"))
-				{
+				//if (fn.Equals("control") || fn.Equals("preinst") || fn.Equals("postinst") || fn.Equals("prerm") || fn.Equals("postrm"))
+				//{
 					// DEBUG: Console.WriteLine("Found match: " + fn);
 
 					AddToTar(controlTar, item);
-				}
+				//}
 			}
 
 			controlTar.Close();
@@ -148,6 +156,13 @@ namespace WindowsPackager
 			try
 			{
 				Stream fs = File.OpenRead(WorkingType);
+
+				if (TypeOfStream == 0 || TypeOfStream == 1)
+				{
+					// gzip the tar
+					using (var gzip = new GZipStream(File.Create(WorkingType + ".gz"), CompressionLevel.Optimal, false)) fs.CopyTo(gzip);
+					fs = File.OpenRead(WorkingType + ".gz");
+				}
 				return fs;
 			}
 			catch (FileNotFoundException)
