@@ -209,8 +209,10 @@ namespace WindowsPackager
 		{
 			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
 
+			var debdirectory = directory + "\\DEBIAN";
+
 			var cwd = Environment.CurrentDirectory;
-			Environment.CurrentDirectory = directory;
+			Environment.CurrentDirectory = debdirectory;
 
 			//Console.WriteLine($"Tar {directory} to control.tar");
 			string TarballName = "control.tar";
@@ -219,19 +221,19 @@ namespace WindowsPackager
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
 			// fix str (mandatory hotfix due to SharpZipLib)
-			controlTar.RootPath = new DirectoryInfo(directory+"\\DEBIAN").FullName.Replace('\\', '/');
+			/* controlTar.RootPath = new DirectoryInfo(directory+"\\DEBIAN").FullName.Replace('\\', '/');
 			if (controlTar.RootPath.EndsWith("/"))
 			{
 				controlTar.RootPath = controlTar.RootPath.Remove(controlTar.RootPath.Length - 1);
-			}
+			} */
 
 			// generate filename
-			var control = File.ReadAllText(directory + "\\DEBIAN\\control");
+			var control = File.ReadAllText(debdirectory + "\\control");
 			DebFileName = Regex.Match(control, "(?<=^Package:\\s*)[^\\s]+.*$", RegexOptions.Multiline).Value + ".deb";
 			Console.WriteLine("Building " + DebFileName + " ...");
 
 			// scan for eligible control.tar entries & add them
-			var files = new DirectoryInfo(directory + "\\DEBIAN").EnumerateFiles();
+			var files = new DirectoryInfo(debdirectory).EnumerateFiles();
 			foreach (var item in files)
 			{
 				var fn = item.Name;
