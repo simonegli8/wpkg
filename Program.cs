@@ -235,10 +235,15 @@ namespace WindowsPackager
 
 		private static void InfoMessage()
 		{
-			Console.WriteLine("Windows Packager (wpkg) v1.0 Guide");
+			Console.WriteLine("Windows Packager (wpkg) v2.0 Guide");
 			ColorizedMessage("Building:\n" +
 				 "wpkg -b            - Build .deb inside the local directory\n" +
-				 "wpkg -b <Path>     - Build .deb in the given path\n",
+				 "wpkg -b <Path>     - Build .deb in the given path\n" +
+				 "wpkg -r            - Build .rpm inside the local directory\n" +
+				 "wpkg -r <Path>     - Build .rpm in the given path. The .spec\n" +
+				 "  file must reside in the SPECS folder. For this to work, you need\n" +
+				 "  to have an RPM compatible WSL distro with rpmdevtools and rpmlint\n" +
+				 "  installed and rpmbuild configured with the command rpmdev-setuptree.",
 				 ConsoleColor.DarkCyan);
 			ColorizedMessage("Extraction:\n" +
 				 "wpkg -x <PathToDeb> <DestFolder>   - Extract .deb to given path\n" +
