@@ -43,30 +43,24 @@ namespace WindowsPackager
 			{
 				WorkingDirectory = PathToPackage;
 			}
-			var specFile = Directory.EnumerateFiles(WorkingDirectory + "\\rpmbuild\\SPECS", "*.spec").FirstOrDefault();
+			var specFile = Directory.EnumerateFiles(WorkingDirectory + "\\SPECS", "*.spec").FirstOrDefault();
 			if (specFile == null) Program.ExitWithMessage(ERRMSG_SPEC_FAILURE, EXIT_SPEC_ERROR);
 			var spec = File.ReadAllText(specFile);
 			var packageName = Regex.Match(spec, "(?<=^Name:\\s*).*$", RegexOptions.Multiline)?.Value.Trim();
 			if (packageName == null) Program.ExitWithMessage(ERRMSG_NAME_FAILURE, EXIT_NAME_ERROR);
 			var packageVersion = Regex.Match(spec, "(?<=^Version:\\s*).*$", RegexOptions.Multiline)?.Value.Trim();
 
-			var dataDir = $"{WorkingDirectory}\\data";
-			var tmpDir = $"{WorkingDirectory}\\tmp\\{packageName}-{packageVersion}";
-			Directory.CreateDirectory($"{WorkingDirectory}\\tmp");
-			Directory.Move(dataDir, tmpDir);
-			BuildDataTarball(WorkingDirectory + "\\tmp", false);
-			Directory.Move(tmpDir, dataDir);
+			BuildDataTarball(WorkingDirectory, $"{packageName}-{packageVersion}/");
 
-			var srcFile = $"{WorkingDirectory}\\rpmbuild\\SOURCES\\{packageName}-{packageVersion}.tar.gz";
-			using (var DataAsStream = CreateStream(WorkingDirectory+"\\tmp", 1))
+			var srcFile = $"{WorkingDirectory}\\{packageName}-{packageVersion}.tar.gz";
+			using (var DataAsStream = CreateStream(WorkingDirectory, 1))
 			using (var pkg = File.Create(srcFile))
 			{
 				DataAsStream.CopyTo(pkg);
 			}
 
-			File.Delete($"{WorkingDirectory}\\tmp\\data.tar");
-			File.Delete($"{WorkingDirectory}\\tmp\\data.tar.gz");
-			Directory.Delete($"{WorkingDirectory}\\tmp");
+			File.Delete($"{WorkingDirectory}\\data.tar");
+			File.Delete($"{WorkingDirectory}\\data.tar.gz");
 
 			var shell = new CmdShell();
 			var flavors = new string[] { "fedoraremix", "fedora", "OracleLinux_7_9", "OracleLinux_8_7", "OracleLinux_9_1", "openSUSE-Leap-15.5", "SUSE-Linux-Enterprise-Server-15-SP4",
@@ -74,8 +68,8 @@ namespace WindowsPackager
 			var linuxshell = flavors.FirstOrDefault(sh => shell.Find(sh) != null);
 			if (linuxshell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
 
-			var homeSpecFile = specFile.Replace(WorkingDirectory, "~").Replace(Path.DirectorySeparatorChar, '/');
-			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSpecFile = specFile.Replace(WorkingDirectory, "~/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
 			var cmd = $@"{linuxshell} -c cp ""{WSLPath(specFile)}"" ""{homeSpecFile}""";
 			Console.WriteLine(cmd);
@@ -87,6 +81,8 @@ namespace WindowsPackager
 			output = shell.Exec(cmd).OutputAndError().Result;
 			Console.WriteLine(output);
 
+			File.Delete(srcFile);
+
 			cmd = $@"{linuxshell} -c rpmlint ""{homeSpecFile}""";
 			Console.WriteLine(cmd);
 			output = shell.Exec(cmd).OutputAndError().Result;
@@ -97,11 +93,18 @@ namespace WindowsPackager
 			output = shell.Exec(cmd).OutputAndError().Result;
 			Console.WriteLine(output);
 
-			cmd = $@"{linuxshell} -c cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\rpmbuild\\RPMS")}""";
+			cmd = $@"{linuxshell} -c cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""";
 			Console.WriteLine(cmd);
 			output = shell.Exec(cmd).OutputAndError().Result;
 			Console.WriteLine(output);
 
+			var rpmsDir = WorkingDirectory + "\\RPMS";
+			foreach (var rpmfile in Directory.EnumerateFiles(rpmsDir))
+			{
+				if (!Regex.IsMatch(Path.GetFileName(rpmfile), $"^{Regex.Escape(packageName)}-{Regex.Escape(packageVersion)}-")) File.Delete(rpmfile);
+				else File.Move(rpmfile, Path.Combine(WorkingDirectory, Path.GetFileName(rpmfile)));
+			}
+			Directory.Delete(rpmsDir);
 		}
 		public static void BuildDebPackage(string PathToPackage)
 		{
@@ -142,11 +145,11 @@ namespace WindowsPackager
 			File.Delete(WorkingDirectory + "\\debian-binary");
 		}
 
-		public static void AddToTar(TarArchive arch, FileSystemInfo info, bool addDot = true)
+		public static void AddToTar(TarArchive arch, FileSystemInfo info, string prefix = "./")
 		{
 			TarEntry entry = TarEntry.CreateEntryFromFile(info.FullName);
 
-			if (entry.Name.StartsWith(arch.RootPath+"/")) entry.Name = (addDot ? "./" : "") +entry.Name.Substring(arch.RootPath.Length+1);
+			entry.Name = prefix + entry.Name;
 			entry.UserId = 0;
 			entry.UserName = "root";
 			entry.GroupId = 0;
@@ -156,43 +159,60 @@ namespace WindowsPackager
 					info.Name == "preinst" || info.Name == "postinst" || info.Name == "prerm" || info.Name == "postrm") entry.TarHeader.Mode = Convert.ToInt32("755", 8);
 				else entry.TarHeader.Mode = Convert.ToInt32("644", 8);
 			} else entry.TarHeader.Mode = Convert.ToInt32("755", 8);
+			Console.WriteLine($"    Tar add {entry.Name}");
 			arch.WriteEntry(entry, false);
 
 			if (info is DirectoryInfo dir)
 			{
-				foreach (var subinfo in dir.EnumerateFileSystemInfos()) AddToTar(arch, subinfo, addDot);
+				foreach (var subinfo in dir.EnumerateFileSystemInfos()) AddToTar(arch, subinfo, prefix);
 			}
 		}
-		public static void BuildDataTarball(string directory, bool addDot = true)
+		public static void BuildDataTarball(string directory, string prefix = "./")
 		{
+			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
+			var cwd = Environment.CurrentDirectory;
+			Environment.CurrentDirectory = directory;
+
+			//Console.WriteLine($"Tar {directory} to data.tar");
 			string TarballName = "data.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
 			Stream tarballStream = new TarOutputStream(outStream);
 			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
 			// fix str (mandatory hotfix due to SharpZipLib)
-			dataTar.RootPath = new DirectoryInfo(directory).FullName.Replace('\\', '/');
+			/* Console.WriteLine($"Current Directory: {Environment.CurrentDirectory}");
+			dataTar.RootPath = Path.GetFullPath(directory).Replace('\\', '/');
 			if (dataTar.RootPath.EndsWith("/"))
 			{
 				dataTar.RootPath = dataTar.RootPath.Remove(dataTar.RootPath.Length - 1);
-			}
+			}*/
+
+			//Console.WriteLine($"Tar RootPath: {dataTar.RootPath}");
 
 			DirectoryInfo[] subdirs = new DirectoryInfo(directory).GetDirectories();
 			foreach (var dir in subdirs)
 			{
-				if (dir.Name.Equals("DEBIAN"))
+				if (dir.Name == "DEBIAN" || dir.Name == "SPECS")
 				{
 					continue;
 				}
 	
-				AddToTar(dataTar, dir, addDot);
+				AddToTar(dataTar, dir, prefix);
 			}
 
 			dataTar.Close();
+
+			Environment.CurrentDirectory = cwd;
 		}
 
 		public static void BuildControlTarball(string directory)
 		{
+			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
+
+			var cwd = Environment.CurrentDirectory;
+			Environment.CurrentDirectory = directory;
+
+			//Console.WriteLine($"Tar {directory} to control.tar");
 			string TarballName = "control.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
 			Stream tarballStream = new TarOutputStream(outStream);
@@ -224,6 +244,8 @@ namespace WindowsPackager
 			}
 
 			controlTar.Close();
+
+			Environment.CurrentDirectory = cwd;
 		}
 
 		public static Stream CreateStream(string FileLocation, int TypeOfStream)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace WindowsPackager
@@ -34,8 +35,28 @@ namespace WindowsPackager
 		private const int EXIT_DEBFILE_ERROR = 300;
 		private const int EXIT_STRUCT_ERROR = 400;
 
+		public static string GetCaseSensitivePath(string path)
+		{
+			var root = Path.GetPathRoot(path);
+			try
+			{
+				foreach (var name in path.Substring(root.Length).Split(Path.DirectorySeparatorChar))
+					root = Directory.GetFileSystemEntries(root, name).First();
+			}
+			catch (Exception e)
+			{
+				// Log("Path not found: " + path);
+				root += path.Substring(root.Length);
+			}
+			return root;
+		}
+
 		static void Main(string[] args)
 		{
+			var cwd = Environment.CurrentDirectory;
+			Environment.CurrentDirectory = Path.GetPathRoot(cwd);
+			Environment.CurrentDirectory = GetCaseSensitivePath(cwd);
+
 			// check because switch
 			if (args.Length == 0)
 			{
