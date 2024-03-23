@@ -69,7 +69,7 @@ namespace WindowsPackager
 			Directory.Delete($"{WorkingDirectory}\\tmp");
 
 			var shell = new CmdShell();
-			var flavors = new string[] { "fedoraremix", "OracleLinux_7_9", "OracleLinux_8_7", "OracleLinux_9_1", "openSUSE-Leap-15.5", "SUSE-Linux-Enterprise-Server-15-SP4",
+			var flavors = new string[] { "fedoraremix", "fedora", "OracleLinux_7_9", "OracleLinux_8_7", "OracleLinux_9_1", "openSUSE-Leap-15.5", "SUSE-Linux-Enterprise-Server-15-SP4",
 			"SUSE-Linux-Enterprise-15-SP5", "openSUSE-Tumbleweed" };
 			var linuxshell = flavors.FirstOrDefault(sh => shell.Find(sh) != null);
 			if (linuxshell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
