@@ -24,16 +24,39 @@ namespace WindowsPackager
 		private const string ERRMSG_FILE_FAILURE = "E: Specified file does not exist! Aborting...";
 		private const string ERRMSG_SPEC_FAILURE = "E: No spec file found! Aborting...";
 		private const string ERRMSG_NAME_FAILURE = "E: Spec file contains no name! Aborting...";
-		private const string ERRMSG_WSL_FAILURE = "E: No installed Fedora WSL distro found! Aborting...";
+		private const string ERRMSG_WSL_FAILURE = "E: No installed WSL distro with rpmbuild installed found! Aborting...";
 		private const int EXIT_SPEC_ERROR = 600;
 		private const int EXIT_NAME_ERROR = 700;
-		private const int EXIT_WSL_ERROR = 700;
+		private const int EXIT_WSL_ERROR = 800;
+
+		public static void Dos2Unix(string[] files)
+		{
+			foreach (var file in files)
+			{
+				Console.WriteLine($"dos2unix {file}");
+
+				var text = File.ReadAllText(file)
+					.Replace("\r\n", "\n");
+				File.WriteAllText(file, text);
+			}
+		}
 
 		private static string WSLPath(string path) => Regex.Replace(Path.GetFullPath(path), "^(?<drive>[A-Z]):",
 			match => $"/mnt/{match.Groups["drive"].Value.ToLower()}", RegexOptions.IgnoreCase | RegexOptions.Singleline)
 			.Replace(Path.DirectorySeparatorChar, '/');
 		public static void BuildRPMPackage(string PathToPackage)
 		{
+
+			var distros = WSLShell.Default.InstalledDistros;
+			var rpmCompatibleDistro = distros
+				.Select(distro => new WSLShell(distro))
+				.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
+			var shell = rpmCompatibleDistro;
+			if (shell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
+			shell.Redirect = true;
+			Console.WriteLine($"Found WSL distro with rpmbuild installed: {shell.CurrentDistroName}");
+			Console.WriteLine();
+
 			string WorkingDirectory = "";
 			if (String.IsNullOrEmpty(PathToPackage))
 			{
@@ -62,49 +85,36 @@ namespace WindowsPackager
 			File.Delete($"{WorkingDirectory}\\data.tar");
 			File.Delete($"{WorkingDirectory}\\data.tar.gz");
 
-			var shell = new CmdShell();
-			var flavors = new string[] { "fedoraremix", "fedora", "OracleLinux_7_9", "OracleLinux_8_7", "OracleLinux_9_1", "openSUSE-Leap-15.5", "SUSE-Linux-Enterprise-Server-15-SP4",
-			"SUSE-Linux-Enterprise-15-SP5", "openSUSE-Tumbleweed" };
-			var linuxshell = flavors.FirstOrDefault(sh => shell.Find(sh) != null);
-			if (linuxshell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
-
 			var homeSpecFile = specFile.Replace(WorkingDirectory, "~/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
 			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
-			var cmd = $@"{linuxshell} -c cp ""{WSLPath(specFile)}"" ""{homeSpecFile}""";
-			Console.WriteLine(cmd);
-			var output = shell.Exec(cmd).OutputAndError().Result;
-			Console.WriteLine(output);
+			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
+			else shell.Exec("mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS");
 
-			cmd = $@"{linuxshell} -c cp ""{WSLPath(srcFile)}"" ""{homeSrcFile}""";
-			Console.WriteLine(cmd);
-			output = shell.Exec(cmd).OutputAndError().Result;
-			Console.WriteLine(output);
+			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
+			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
 
 			File.Delete(srcFile);
 
-			cmd = $@"{linuxshell} -c rpmlint ""{homeSpecFile}""";
-			Console.WriteLine(cmd);
-			output = shell.Exec(cmd).OutputAndError().Result;
-			Console.WriteLine(output);
-
-			cmd = $@"{linuxshell} -c rpmbuild -bb ""{homeSpecFile}""";
-			Console.WriteLine(cmd);
-			output = shell.Exec(cmd).OutputAndError().Result;
-			Console.WriteLine(output);
-
-			cmd = $@"{linuxshell} -c cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""";
-			Console.WriteLine(cmd);
-			output = shell.Exec(cmd).OutputAndError().Result;
-			Console.WriteLine(output);
+			if (shell.Find("rpmlint") != null) shell.Exec($"rpmlint {homeSpecFile}");
+			shell.Exec($"rpmbuild -bb {homeSpecFile}");
+			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
 
 			var rpmsDir = WorkingDirectory + "\\RPMS";
-			foreach (var rpmfile in Directory.EnumerateFiles(rpmsDir))
+			if (Directory.Exists(rpmsDir))
 			{
-				if (!Regex.IsMatch(Path.GetFileName(rpmfile), $"^{Regex.Escape(packageName)}-{Regex.Escape(packageVersion)}-")) File.Delete(rpmfile);
-				else File.Move(rpmfile, Path.Combine(WorkingDirectory, Path.GetFileName(rpmfile)));
+				foreach (var rpmfile in Directory.EnumerateFiles(rpmsDir, "*.rpm", SearchOption.AllDirectories))
+				{
+					if (!Regex.IsMatch(Path.GetFileName(rpmfile), $"^{Regex.Escape(packageName)}-{Regex.Escape(packageVersion)}-")) File.Delete(rpmfile);
+					else
+					{
+						var workrmpfile = Path.Combine(WorkingDirectory, Path.GetFileName(rpmfile));
+						if (File.Exists(workrmpfile)) File.Delete(workrmpfile);
+						File.Move(rpmfile, workrmpfile);
+					}
+				}
+				Directory.Delete(rpmsDir, true);
 			}
-			Directory.Delete(rpmsDir);
 		}
 		public static void BuildDebPackage(string PathToPackage)
 		{
@@ -143,6 +153,8 @@ namespace WindowsPackager
 			File.Delete(WorkingDirectory + "\\control.tar.gz");
 			File.Delete(WorkingDirectory + "\\data.tar.gz");
 			File.Delete(WorkingDirectory + "\\debian-binary");
+
+			Console.WriteLine($"Created {DebFileName}");
 		}
 
 		public static void AddToTar(TarArchive arch, FileSystemInfo info, string prefix = "./")
@@ -159,7 +171,7 @@ namespace WindowsPackager
 					info.Name == "preinst" || info.Name == "postinst" || info.Name == "prerm" || info.Name == "postrm") entry.TarHeader.Mode = Convert.ToInt32("755", 8);
 				else entry.TarHeader.Mode = Convert.ToInt32("644", 8);
 			} else entry.TarHeader.Mode = Convert.ToInt32("755", 8);
-			Console.WriteLine($"    Tar add {entry.Name}");
+			Console.WriteLine($"  add {entry.Name}");
 			arch.WriteEntry(entry, false);
 
 			if (info is DirectoryInfo dir)
@@ -169,6 +181,7 @@ namespace WindowsPackager
 		}
 		public static void BuildDataTarball(string directory, string prefix = "./")
 		{
+			var origDir = directory;
 			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
 			var cwd = Environment.CurrentDirectory;
 			Environment.CurrentDirectory = directory;
@@ -178,6 +191,8 @@ namespace WindowsPackager
 			Stream outStream = File.Create(directory + "\\" + TarballName);
 			Stream tarballStream = new TarOutputStream(outStream);
 			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream);
+
+			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
 
 			// fix str (mandatory hotfix due to SharpZipLib)
 			/* Console.WriteLine($"Current Directory: {Environment.CurrentDirectory}");
@@ -203,10 +218,13 @@ namespace WindowsPackager
 			dataTar.Close();
 
 			Environment.CurrentDirectory = cwd;
+
+			Console.WriteLine();
 		}
 
 		public static void BuildControlTarball(string directory)
-		{
+		{			
+			var origDir = directory;
 			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
 
 			var debdirectory = directory + "\\DEBIAN";
@@ -220,6 +238,8 @@ namespace WindowsPackager
 			Stream tarballStream = new TarOutputStream(outStream);
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream);
 
+			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
+
 			// fix str (mandatory hotfix due to SharpZipLib)
 			/* controlTar.RootPath = new DirectoryInfo(directory+"\\DEBIAN").FullName.Replace('\\', '/');
 			if (controlTar.RootPath.EndsWith("/"))
@@ -229,8 +249,7 @@ namespace WindowsPackager
 
 			// generate filename
 			var control = File.ReadAllText(debdirectory + "\\control");
-			DebFileName = Regex.Match(control, "(?<=^Package:\\s*)[^\\s]+.*$", RegexOptions.Multiline).Value + ".deb";
-			Console.WriteLine("Building " + DebFileName + " ...");
+			DebFileName = Regex.Match(control, "(?<=^Package:\\s*)[^\\s]+.*$", RegexOptions.Multiline).Value.Trim() + ".deb";
 
 			// scan for eligible control.tar entries & add them
 			var files = new DirectoryInfo(debdirectory).EnumerateFiles();
@@ -248,6 +267,7 @@ namespace WindowsPackager
 			controlTar.Close();
 
 			Environment.CurrentDirectory = cwd;
+			Console.WriteLine();
 		}
 
 		public static Stream CreateStream(string FileLocation, int TypeOfStream)

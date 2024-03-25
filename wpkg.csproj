@@ -76,21 +76,18 @@
     <Compile Include="ARFileFormat\StreamExtensions.cs" />
     <Compile Include="ARFileFormat\SubStream.cs" />
     <Compile Include="Builder.cs" />
+    <Compile Include="CmdShell.cs" />
     <Compile Include="Extractor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Shell.cs" />
+    <Compile Include="WSLShell.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <None Include="LICENSE" />
     <None Include="packages.config" />
     <None Include="README.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SolidCP\Sources\SolidCP.Providers.Base\SolidCP.Providers.Base.csproj">
-      <Project>{22360f0a-a2a0-4f4c-9dd2-a523dfd519ad}</Project>
-      <Name>SolidCP.Providers.Base</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

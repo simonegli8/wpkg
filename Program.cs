@@ -22,6 +22,7 @@ namespace WindowsPackager
 		  };
 		private const string CREATE_DEBIAN_PACKAGE = "-b";
 		private const string CREATE_RPM_PACKAGE = "-r";
+		private const string CONVERT_DOS2UNIX = "-d2u";
 		private const string EXTRACT_DEBIAN_PACKAGE = "-x";
 		private const string THEME_DEB = "--theme";
 		private const string HELPTEXT = "-h";
@@ -65,6 +66,16 @@ namespace WindowsPackager
 			}
 			switch (args[0])
 			{
+				case CONVERT_DOS2UNIX:
+					if (args.Length == 2)
+					{
+						Builder.Dos2Unix(args[1].Split(';', ','));
+					}
+					else
+					{
+						ExitWithMessage(ERRMSG_ARGC_FAILURE, EXIT_ARGS_MISMATCH);
+					}
+					break;
 				case CREATE_RPM_PACKAGE:
 					if (args.Length == 2)
 					{
@@ -240,10 +251,10 @@ namespace WindowsPackager
 				 "wpkg -b            - Build .deb inside the local directory\n" +
 				 "wpkg -b <Path>     - Build .deb in the given path\n" +
 				 "wpkg -r            - Build .rpm inside the local directory\n" +
-				 "wpkg -r <Path>     - Build .rpm in the given path. The .spec\n" +
-				 "  file must reside in the SPECS folder. For this to work, you need\n" +
-				 "  to have an RPM compatible WSL distro with rpmdevtools and rpmlint\n" +
-				 "  installed and rpmbuild configured with the command rpmdev-setuptree.",
+				 "wpkg -r <Path>     - Build .rpm in the given path." +
+				 "  For rpm creation:" +
+				 "  The .spec file must reside in the SPECS folder. For this to\n" +
+				 "	 work, you need to have an WSL distro with rpmbuild installed.\n",
 				 ConsoleColor.DarkCyan);
 			ColorizedMessage("Extraction:\n" +
 				 "wpkg -x <PathToDeb> <DestFolder>   - Extract .deb to given path\n" +
@@ -252,8 +263,10 @@ namespace WindowsPackager
 				 " *: only works if you're in the same folder as the .deb!\n",
 				 ConsoleColor.DarkGreen);
 			ColorizedMessage("Extras:\n" +
-				 "wpkg -h        - Show this helptext\n" +
-				 "wpkg --theme   - Create a base for an iOS Theme in the directory you are currently\n\n",
+				 "wpkg -h                    - Show this helptext\n" +
+				 "wpkg -d2u file1;file2;...  - Convert files from DOS to Unix\n" +
+				 "wpkg --theme               - Create a base for an iOS Theme\n" +
+				 "  in the directory you are currently\n",
 				 ConsoleColor.DarkMagenta);
 			ColorizedMessage("If you stumble upon an error, please send an email at\n" +
 				 "support@saadat.dev\n",
