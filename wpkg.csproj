@@ -76,7 +76,7 @@
     <Compile Include="ARFileFormat\StreamExtensions.cs" />
     <Compile Include="ARFileFormat\SubStream.cs" />
     <Compile Include="Builder.cs" />
-    <Compile Include="CmdShell.cs" />
+    <Compile Include="DefaultShell.cs" />
     <Compile Include="Extractor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

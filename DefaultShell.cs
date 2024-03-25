@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 namespace SolidCP.Providers.OS
 {
 
-	public class CmdShell : Shell
+	public class DefaultShell : Shell
 	{
-		public override string ShellExe => "Cmd";
+		public override string ShellExe => WSLShell.IsWindows ? "Cmd" : "bash";
 	}
 }

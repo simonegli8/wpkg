@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,7 +12,9 @@ namespace SolidCP.Providers.OS
 	public class WSLShell : Shell
 	{
 		public enum Distro { Default, Ubuntu, Debian, Kali, Ubuntu18, Ubuntu20, Ubuntu22, Ubuntu24, Oracle7, Oracle8, Oracle9, openSUSELeap, SUSE15_4, SUSE15_5, openSUSEThumbleweed, FedoraRemix, Other };
-		public override string ShellExe => CurrentDistro == Distro.Default ? "wsl" : $"wsl --distribution {CurrentDistroName}";
+		public override string ShellExe => IsWindows ? (CurrentDistro == Distro.Default ?
+			"wsl" : $"wsl --distribution {CurrentDistroName}") :
+			"bash";
 
 		public WSLShell() : base() { BaseShell = Shell.Default; }
 		public WSLShell(string distro) : this() => Use(distro);
@@ -46,6 +49,8 @@ namespace SolidCP.Providers.OS
 		}
 		protected string DistroName(Distro distro)
 		{
+			if (!IsWindows) return "unix";
+
 			switch (distro)
 			{
 				default:
@@ -81,15 +86,22 @@ namespace SolidCP.Providers.OS
 		}
 
 		protected string WSLList => BaseShell.SilentClone.Exec($"wsl --list --verbose", Encoding.Unicode).Output().Result;
-		public string[] InstalledDistros => base.Find("wsl") == null ? new string[0] : Regex.Matches(WSLList, @"(?<=\n\*?\s+)[^\s]+")
+		public string[] InstalledDistros => IsWindows ?
+			(base.Find("wsl") == null ? new string[0] : Regex.Matches(WSLList, @"(?<=\n\*?\s+)[^\s]+")
 			.OfType<Match>()
 			.Select(match => match.Value)
-			.ToArray();
-		public string DefaultDistro => base.Find("wsl") == null ? null : Regex.Match(WSLList, @"(?<=\n\*\s+)[^\s]+").Value;
+			.ToArray()) :
+			new string[1] { "unix" };
+		public string DefaultDistro => IsWindows ?
+			(base.Find("wsl") == null ? null :
+			Regex.Match(WSLList, @"(?<=\n\*\s+)[^\s]+").Value) :
+			"unix";
 		public bool IsInstalled(Distro distro) => IsInstalled(DistroName(distro));
-		public bool IsInstalled(string distroName) => Regex.IsMatch(WSLList, $@"^\*?\s+{Regex.Escape(distroName)}\s", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-		public bool IsInstalledAny() => base.Find("wsl") != null && InstalledDistros.Length > 0;
-		public bool IsInstalled() => IsInstalled(CurrentDistroName);
+		public bool IsInstalled(string distroName) => !IsWindows ||
+			Regex.IsMatch(WSLList, $@"^\*?\s+{Regex.Escape(distroName)}\s", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+		public bool IsInstalledAny() => !IsWindows || base.Find("wsl") != null && InstalledDistros.Length > 0;
+		public bool IsInstalled() => !IsWindows || IsInstalled(CurrentDistroName);
 
 		public string WSLPath(string path) => Regex.Replace(Path.GetFullPath(path), "^(?<drive>[A-Z]):",
 			match => $"/mnt/{match.Groups["drive"].Value.ToLower()}", RegexOptions.IgnoreCase | RegexOptions.Singleline)
@@ -98,6 +110,9 @@ namespace SolidCP.Providers.OS
 		protected override string ToTempFile(string script)
 		{
 			script = script.Replace(Environment.NewLine, "\n");
+
+			if (!IsWindows) return base.ToTempFile(script);
+
 			var localTmp = base.ToTempFile(script);
 			return WSLPath(localTmp);
 		}
@@ -105,8 +120,13 @@ namespace SolidCP.Providers.OS
 		public override Shell ExecAsync(string command, Encoding encoding = null)
 		{
 			LogCommand?.Invoke(command);
-
-			return BaseShell.ExecAsync($"{ShellExe} {command}", encoding);
+			if (IsWindows)
+			{
+				return BaseShell.ExecAsync($"{ShellExe} {command}", encoding);
+			} else // System is already unix, do not use WSL
+			{
+				return BaseShell.ExecAsync(command, encoding);
+			}
 		}
 		public override Shell ExecScriptAsync(string script, Encoding encoding = null)
 		{
@@ -151,14 +171,17 @@ namespace SolidCP.Providers.OS
 		}
 		public override string Find(string cmd)
 		{
-			var shell = (WSLShell)SilentClone;
+			if (IsWindows)
+			{
+				var shell = (WSLShell)SilentClone;
 
-			if (!shell.IsInstalled()) return null;
+				if (!shell.IsInstalled()) return null;
 
-			var output = shell.Exec($"which {cmd}").Output().Result.Trim();
-			if (string.IsNullOrEmpty(output)) return null;
-
-			return output;
+				var output = shell.Exec($"which {cmd}").Output().Result.Trim();
+				if (string.IsNullOrEmpty(output)) return null;
+				return output;
+			}
+			else return base.Find(cmd);
 		}
 
 		protected override void OnLogCommand(string text)
@@ -173,5 +196,11 @@ namespace SolidCP.Providers.OS
 		protected void OnBaseLogError(string msg) => LogError?.Invoke(msg);
 
 		public new readonly static WSLShell Default = new WSLShell();
+
+#if wpkg
+		public static bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+#else
+		public static bool IsWindows => OSInfo.IsWindows;
+#endif
 	}
 }
