@@ -245,7 +245,7 @@ namespace WindowsPackager
 
 		public static void ExitWithMessage(string Message, int ExitCode)
 		{
-			Console.WriteLine(Message);
+			Console.Error.WriteLine(Message);
 			Environment.Exit(ExitCode);
 		}
 
