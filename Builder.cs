@@ -98,7 +98,7 @@ namespace WindowsPackager
 			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
 			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
-			else shell.Exec("mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS");
+			else shell.Exec("mkdir -p ~/rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}");
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
