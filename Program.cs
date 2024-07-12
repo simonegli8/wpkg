@@ -22,6 +22,7 @@ namespace WindowsPackager
 		  };
 		private const string CREATE_DEBIAN_PACKAGE = "-b";
 		private const string CREATE_RPM_PACKAGE = "-r";
+		private const string DEBUG_RPM_PACKAGE = "-rd";
 		private const string CONVERT_DOS2UNIX = "-d2u";
 		private const string EXTRACT_DEBIAN_PACKAGE = "-x";
 		private const string THEME_DEB = "--theme";
@@ -79,6 +80,8 @@ namespace WindowsPackager
 					}
 					break;
 				case CREATE_RPM_PACKAGE:
+				case DEBUG_RPM_PACKAGE:
+					Builder.Debug = args[0] == DEBUG_RPM_PACKAGE;
 					if (args.Length == 2)
 					{
 						if (Directory.Exists(args[1]))
@@ -253,7 +256,11 @@ namespace WindowsPackager
 				 "wpkg -b            - Build .deb inside the local directory\n" +
 				 "wpkg -b <Path>     - Build .deb in the given path\n" +
 				 "wpkg -r            - Build .rpm inside the local directory\n" +
-				 "wpkg -r <Path>     - Build .rpm in the given path." +
+				 "wpkg -rd           - Build .rpm inside the local directory, and\n" +
+				 "                     show debug output\n" +
+				 "wpkg -r <Path>     - Build .rpm in the given path.\n" +
+				 "wpkg -rd <Path>    - Build .rpm in the given path, and show debug\n" +
+				 "                     output\n" +
 				 "  For rpm creation:" +
 				 "  The .spec file must reside in the SPECS folder. For this to\n" +
 				 "	 work, you need to have an WSL distro with rpmbuild installed.\n",

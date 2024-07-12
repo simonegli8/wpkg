@@ -11,6 +11,7 @@ namespace SolidCP.Providers.OS
 {
 	public class WSLShell : Shell
 	{
+		public bool Debug { get; set; }
 		public enum Distro { Default, Ubuntu, Debian, Kali, Ubuntu18, Ubuntu20, Ubuntu22, Ubuntu24, Oracle7, Oracle8, Oracle9, openSUSELeap, SUSE15_4, SUSE15_5, openSUSEThumbleweed, FedoraRemix, Other };
 		public override string ShellExe => IsWindows ? (CurrentDistro == Distro.Default ?
 			"wsl" : $"wsl --distribution {CurrentDistroName}") :
@@ -165,7 +166,7 @@ namespace SolidCP.Providers.OS
 			{
 				var clone = (WSLShell)base.SilentClone;
 				clone.BaseShell = BaseShell.SilentClone;
-				clone.Redirect = false;
+				clone.Redirect = Debug; // false;
 				return clone;
 			}
 		}

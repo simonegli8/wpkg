@@ -29,6 +29,7 @@ namespace WindowsPackager
 		private const int EXIT_NAME_ERROR = 700;
 		private const int EXIT_WSL_ERROR = 800;
 
+		public static bool Debug { get; set; } = false;
 		public static void Dos2Unix(string[] files)
 		{
 			foreach (var file in files)
@@ -50,11 +51,14 @@ namespace WindowsPackager
 			.Replace(Path.DirectorySeparatorChar, '/');
 		public static void BuildRPMPackage(string PathToPackage)
 		{
+			WSLShell.Default.Debug = Debug;
+
 			var distros = WSLShell.Default.InstalledDistros;
-			Console.WriteLine($"Installed WSL distros: {string.Join(",", distros)}");
+			
+			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distros)}");
 
 			var rpmCompatibleDistro = distros
-				.Select(distro => new WSLShell(distro))
+				.Select(distro => new WSLShell(distro) { Debug = Debug })
 				.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
 			var shell = rpmCompatibleDistro;
 			if (shell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
