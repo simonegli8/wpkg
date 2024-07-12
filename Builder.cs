@@ -50,8 +50,9 @@ namespace WindowsPackager
 			.Replace(Path.DirectorySeparatorChar, '/');
 		public static void BuildRPMPackage(string PathToPackage)
 		{
-
 			var distros = WSLShell.Default.InstalledDistros;
+			Console.WriteLine($"Installed WSL distros: {string.Join(",", distros)}");
+
 			var rpmCompatibleDistro = distros
 				.Select(distro => new WSLShell(distro))
 				.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
