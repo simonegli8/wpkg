@@ -55,7 +55,7 @@ namespace WindowsPackager
 
 			var distros = WSLShell.Default.InstalledDistros;
 			
-			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distros)}");
+			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distros.OfType<string>())}");
 
 			var rpmCompatibleDistro = distros
 				.Select(distro => new WSLShell(distro) { Debug = Debug })

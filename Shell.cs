@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using System.Collections;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -10,6 +12,8 @@ using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Text.RegularExpressions;
 using static System.Net.Mime.MediaTypeNames;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace SolidCP.Providers.OS
 {
@@ -33,13 +37,19 @@ namespace SolidCP.Providers.OS
 			LogOutput += OnLogOutput;
 		}
 
+		SemaphoreSlim Lock = new SemaphoreSlim(1, 1), OutputLock = new SemaphoreSlim(1, 1),
+			ErrorLock = new SemaphoreSlim(1, 1), OutputAndErrorLock = new SemaphoreSlim(1, 1);
+
 		//methods to support await on Shell type
 		public Shell GetAwaiter() => this;
 
 		Action Continuation = null;
 		public void OnCompleted(Action continuation)
 		{
-			lock (this) Continuation += continuation;
+			Lock.Wait();
+			Continuation += continuation;
+			Lock.Release();
+
 			CheckCompleted();
 		}
 
@@ -65,27 +75,50 @@ namespace SolidCP.Providers.OS
 			{
 				if (process != value)
 				{
-					lock (this)
-					{
-						hasProcessExited = outputEOF = errorEOF = value == null;
-						process = value;
-					}
+					Lock.Wait();
+					hasProcessExited = outputEOF = errorEOF = value == null;
+					process = value;
+					Lock.Release();
 				}
 			}
 		}
 
 		public bool NotFound { get; set; }
+		public static IEnumerable<string> Paths
+		{
+			get
+			{
+				string proc, machine = "", user = "";
+				string[] sources;
+				proc = Environment.GetEnvironmentVariable("PATH");
+				if (IsWindows)
+				{
+					machine = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine);
+					user = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User);
+					sources = new string[] { proc, machine, user,
+						Environment.GetFolderPath(Environment.SpecialFolder.SystemX86),
+						Environment.GetFolderPath(Environment.SpecialFolder.System) };
+				}
+				else sources = new string[] { proc };
+
+				return sources
+					.SelectMany(paths => paths.Split(new char[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
+					.Select(path => path.Trim())
+					.Distinct();
+			}
+		}
+
 		public virtual string Find(string cmd)
 		{
 			string file = null;
+			cmd = cmd.Trim('"');
 			if (cmd.IndexOf(Path.DirectorySeparatorChar) >= 0)
 			{
 				if (File.Exists(cmd)) file = cmd;
 			}
 			else
 			{
-				file = Environment.GetEnvironmentVariable("PATH")
-					  .Split(new char[] { PathSeparator })
+				file = Paths
 					  .SelectMany(p =>
 					  {
 						  var p1 = Path.Combine(p, cmd);
@@ -108,7 +141,8 @@ namespace SolidCP.Providers.OS
 		{
 			Action cnt = null;
 			var exited = Process.HasExited;
-			lock (this)
+			Lock.Wait();
+			try
 			{
 				hasProcessExited = hasProcessExited || exited;
 				checkHasExited = false;
@@ -119,10 +153,15 @@ namespace SolidCP.Providers.OS
 				}
 				checkHasExited = true;
 			}
+			finally
+			{
+				Lock.Release();
+			}
 			cnt?.Invoke();
 		}
 
-		public virtual Shell ExecAsync(string cmd, Encoding encoding = null)
+		public virtual StreamWriter StandardInput => process.StandardInput;
+		public virtual Shell ExecAsync(string cmd, Encoding encoding = null, StringDictionary environmentVariables = null)
 		{
 			LogCommand?.Invoke(cmd);
 
@@ -174,12 +213,23 @@ namespace SolidCP.Providers.OS
 				process.StartInfo.WindowStyle = WindowStyle;
 				process.StartInfo.RedirectStandardOutput = true;
 				process.StartInfo.RedirectStandardError = true;
+				process.StartInfo.RedirectStandardInput = true;
 				process.StartInfo.StandardOutputEncoding = encoding ?? Encoding.Default;
 				process.StartInfo.StandardErrorEncoding = encoding ?? Encoding.Default;
+				if (environmentVariables != null)
+				{
+					foreach (DictionaryEntry variable in environmentVariables)
+					{
+						process.StartInfo.EnvironmentVariables.Add(variable.Key as string, variable.Value as string);
+					}
+				}
 				process.Exited += (obj, args) =>
 				{
 					child.exitCode = child.Process.ExitCode;
-					lock (child) child.hasProcessExited = true;
+					child.Lock.Wait();
+					child.hasProcessExited = true;
+					child.Lock.Release();
+
 					child.CheckCompleted();
 				};
 				process.EnableRaisingEvents = true;
@@ -187,7 +237,10 @@ namespace SolidCP.Providers.OS
 				{
 					if (data.Data == null)
 					{
-						lock (child) child.errorEOF = true;
+						child.Lock.Wait();
+						child.errorEOF = true;
+						child.Lock.Release();
+
 						child.CheckCompleted();
 					}
 					else
@@ -206,7 +259,10 @@ namespace SolidCP.Providers.OS
 				{
 					if (data.Data == null)
 					{
-						lock (child) child.outputEOF = true;
+						child.Lock.Wait();
+						child.outputEOF = true;
+						child.Lock.Release();
+
 						child.CheckCompleted();
 						LogCommandEnd?.Invoke();
 					}
@@ -236,7 +292,7 @@ namespace SolidCP.Providers.OS
 				return child;
 			}
 		}
-		public virtual Shell Exec(string command, Encoding encoding = null) => ExecAsync(command, encoding).Task().Result;
+		public virtual Shell Exec(string command, Encoding encoding = null, StringDictionary environmentVariables = null) => ExecAsync(command, encoding).Task().Result;
 		public virtual Shell Clone
 		{
 			get
@@ -258,7 +314,7 @@ namespace SolidCP.Providers.OS
 			}
 		}
 
-		public virtual Shell ExecScriptAsync(string script, Encoding encoding = null)
+		public virtual Shell ExecScriptAsync(string script, Encoding encoding = null, StringDictionary environmentVariables = null)
 		{
 			script = script.Trim();
 			// adjust new lines to OS type
@@ -275,7 +331,7 @@ namespace SolidCP.Providers.OS
 			return shell;
 		}
 
-		public virtual Shell ExecScript(string script, Encoding encoding = null) => ExecScriptAsync(script, encoding).Task().Result;
+		public virtual Shell ExecScript(string script, Encoding encoding = null, StringDictionary environmentVariables = null) => ExecScriptAsync(script, encoding, environmentVariables).Task().Result;
 
 
 		/* public virtual async Task<Shell> Wait(int milliseconds = Timeout.Infinite)
@@ -298,24 +354,50 @@ namespace SolidCP.Providers.OS
 			return await this;
 		}
 
+		public void Wait() => Task().Wait();
+
 		public async Task<string> Output()
 		{
 			if (Process == null && NotFound) return null;
 			await this;
-			lock (output) return output.ToString();
+			await OutputLock.WaitAsync();
+			try
+			{
+				return output.ToString();
+			}
+			finally
+			{
+				OutputLock.Release();
+			}
 		}
 
 		public async Task<string> Error()
 		{
 			if (Process == null && NotFound) return null;
 			await this;
-			lock (error) return error.ToString();
+			await ErrorLock.WaitAsync();
+			try
+			{
+				return error.ToString();
+			}
+			finally
+			{
+				ErrorLock.Release();
+			}
 		}
 		public async Task<string> OutputAndError()
 		{
 			if (Process == null && NotFound) return null;
 			await this;
-			lock (outputAndError) return outputAndError.ToString();
+			await OutputAndErrorLock.WaitAsync();
+			try
+			{
+				return outputAndError.ToString();
+			}
+			finally
+			{
+				OutputAndErrorLock.Release();
+			}
 		}
 
 		public async Task<int> ExitCode()
@@ -328,10 +410,15 @@ namespace SolidCP.Providers.OS
 		public string LogFile = null;
 		protected virtual void OnLog(string text)
 		{
-			lock (outputAndError)
+			OutputAndErrorLock.Wait();
+			try
 			{
 				outputAndError.Append(text);
 				if (LogFile != null) File.AppendAllText(LogFile, text);
+			}
+			finally
+			{
+				OutputAndErrorLock.Release();
 			}
 		}
 
@@ -348,21 +435,46 @@ namespace SolidCP.Providers.OS
 		}
 		protected virtual void OnLogOutput(string text)
 		{
-			lock (output)
+			OutputLock.Wait();
+			try
 			{
 				output.Append(text);
 				if (Redirect) Console.Write(text);
 			}
+			finally
+			{
+				OutputLock.Release();
+			}
 		}
 		protected virtual void OnLogError(string text)
 		{
-			lock (error) error.Append(text);
+			ErrorLock.Wait();
+			try
+			{
+				error.Append(text);
+			}
+			finally
+			{
+				ErrorLock.Release();
+			}
+
 			if (Redirect) Console.Error.Write(text);
 		}
+
+		static Shell standard = null;
+		public static Shell Standard => standard ??= new StandardShell();
+
 #if wpkg
-		public readonly static Shell Default = new DefaultShell(); // OSInfo.Current.DefaultShell;
+		public readonly static Shell Default = new StandardShell(); // OSInfo.Current.DefaultShell;
+		public static bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 #else
 		public static Shell Default => OSInfo.Current.DefaultShell;
+		public static bool IsWindows => OSInfo.IsWindows;
 #endif
+	}
+
+	public class StandardShell : Shell
+	{
+		public override string ShellExe => Shell.IsWindows ? "cmd" : "sh";
 	}
 }
