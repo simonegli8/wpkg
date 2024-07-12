@@ -54,8 +54,9 @@ namespace WindowsPackager
 			WSLShell.Default.Debug = Debug;
 
 			var distros = WSLShell.Default.InstalledDistros;
-			
-			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distros.OfType<string>())}");
+			var distroNames = distros.Select(distro => distro.ToString());
+
+			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distroNames)}");
 
 			var rpmCompatibleDistro = distros
 				.Select(distro => new WSLShell(distro) { Debug = Debug })
@@ -106,7 +107,19 @@ namespace WindowsPackager
 			File.Delete(srcFile);
 
 			if (shell.Find("rpmlint") != null) shell.Exec($"rpmlint {homeSpecFile}");
-			shell.Exec($"rpmbuild -bb {homeSpecFile}");
+
+			var rpmbuildShell = shell.Clone;
+			rpmbuildShell.Parent = null;
+			rpmbuildShell.Redirect = false;
+			rpmbuildShell.LogError += msg =>
+			{
+				if (msg.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) shell.LogError?.Invoke(msg);
+				else shell.LogOutput(msg);
+			};
+			rpmbuildShell.LogOutput += msg => shell.LogOutput(msg);
+
+			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
+
 			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
 
 			var rpmsDir = WorkingDirectory + "\\RPMS";
