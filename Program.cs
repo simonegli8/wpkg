@@ -31,10 +31,12 @@ namespace WindowsPackager
 		private const string ERRMSG_ARGC_FAILURE = "E: Mismatch in arguments! (perhaps missing one or one too much?) Aborting...";
 		private const string ERRMSG_DEB_FAILURE = "E: File is not a Debian Binary! Aborting...";
 		private const string ERRMSG_STRUCT_FAILURE = "E: Directory does NOT match a standard structure! (Perhaps missing control?) Aborting...";
+		public const string ERRMSG_IO_FAILURE = "E: Cannot read or write to file {0}! {1} Aborting...";
 		private const int EXIT_ARGS_MISMATCH = 100;
 		private const int EXIT_DIR_ERROR = 200;
 		private const int EXIT_DEBFILE_ERROR = 300;
 		private const int EXIT_STRUCT_ERROR = 400;
+		public const int EXIT_IO_ERROR = 500;
 
 		public static string GetCaseSensitivePath(string path)
 		{
@@ -269,7 +271,7 @@ namespace WindowsPackager
 				 "  in the directory you are currently\n",
 				 ConsoleColor.DarkMagenta);
 			ColorizedMessage("If you stumble upon an error, please send an email at\n" +
-				 "support@saadat.dev\n",
+				 "simon.jakob.egli@gmail.com\n",
 				 ConsoleColor.DarkRed);
 		}
 

@@ -35,9 +35,13 @@ namespace WindowsPackager
 			{
 				Console.WriteLine($"dos2unix {file}");
 
-				var text = File.ReadAllText(file)
-					.Replace("\r\n", "\n");
-				File.WriteAllText(file, text);
+				try {
+					var text = File.ReadAllText(file)
+						.Replace("\r\n", "\n");
+					File.WriteAllText(file, text);
+				} catch (Exception ex) {
+					Program.ExitWithMessage(string.Format(Program.ERRMSG_IO_FAILURE, file, ex.Message), Program.EXIT_IO_ERROR);
+				}
 			}
 		}
 
