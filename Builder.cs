@@ -114,9 +114,9 @@ namespace WindowsPackager
 			rpmbuildShell.LogError += msg =>
 			{
 				if (msg.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) shell.LogError?.Invoke(msg);
-				else shell.LogOutput(msg);
+				else shell.LogOutput?.Invoke(msg);
 			};
-			rpmbuildShell.LogOutput += msg => shell.LogOutput(msg);
+			rpmbuildShell.LogOutput += msg => shell.LogOutput?.Invoke(msg);
 
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
