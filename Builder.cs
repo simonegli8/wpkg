@@ -49,6 +49,10 @@ namespace WindowsPackager
 		private static string WSLPath(string path) => Regex.Replace(Path.GetFullPath(path), "^(?<drive>[A-Z]):",
 			match => $"/mnt/{match.Groups["drive"].Value.ToLower()}", RegexOptions.IgnoreCase | RegexOptions.Singleline)
 			.Replace(Path.DirectorySeparatorChar, '/');
+
+		private static void LogRpmBuildOutput(string msg, Shell shell)
+		{
+		}
 		public static void BuildRPMPackage(string PathToPackage)
 		{
 			WSLShell.Default.Debug = Debug;
@@ -120,16 +124,13 @@ cat ~/.rpmmacros"
 			var rpmbuildShell = shell.Clone;
 			rpmbuildShell.Parent = null;
 			rpmbuildShell.Redirect = false;
-			rpmbuildShell.LogError += msg =>
+			var logOutput = (Action<string>)(msg =>
 			{
 				if (msg.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) shell.LogError?.Invoke(msg);
 				else shell.LogOutput?.Invoke(msg);
-			};
-			rpmbuildShell.LogOutput += msg =>
-			{
-				if (msg.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) shell.LogError?.Invoke(msg);
-				else shell.LogOutput?.Invoke(msg);
-			};
+			});
+			rpmbuildShell.LogError += logOutput;
+			rpmbuildShell.LogOutput += logOutput;
 
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
