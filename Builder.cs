@@ -122,8 +122,6 @@ cat ~/.rpmmacros"
 
 			if (shell.Find("rpmlint") != null) shell.Exec($"rpmlint {homeSpecFile}");
 
-			Debugger.Launch();
-
 			var rpmbuildShell = shell.SilentClone;
 			rpmbuildShell.Redirect = false;
 			var logOutput = (Action<string>)(msg =>
