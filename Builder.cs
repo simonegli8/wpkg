@@ -107,7 +107,8 @@ cat <<EOF >~/.rpmmacros
 %_tmppath  %{_topdir}/tmp
 EOF
 
-cat ~/.rpmmacros");
+cat ~/.rpmmacros"
+			.Replace(Environment.NewLine, "\n"));
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
