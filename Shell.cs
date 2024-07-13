@@ -311,6 +311,7 @@ namespace SolidCP.Providers.OS
 				var clone = Clone;
 				clone.Log = clone.LogCommand = clone.LogOutput = clone.LogError = null;
 				clone.Parent = null;
+				clone.Redirect = false;
 				return clone;
 			}
 		}
@@ -407,8 +408,8 @@ namespace SolidCP.Providers.OS
 			await this;
 			return exitCode;
 		}
-		public bool Redirect = false;
-		public string LogFile = null;
+		public virtual bool Redirect { get; set; } = false;
+		public virtual string LogFile { get; set; } = null;
 		protected virtual void OnLog(string text)
 		{
 			OutputAndErrorLock.Wait();

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using WindowsPackager.ARFileFormat;
 using ICSharpCode.SharpZipLib.Tar;
 using System.IO.Compression;
@@ -60,7 +61,7 @@ namespace WindowsPackager
 			var distros = WSLShell.Default.InstalledDistros;
 			var distroNames = distros.Select(distro => distro.ToString());
 
-			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(",", distroNames)}");
+			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(", ", distroNames)}");
 
 			var rpmCompatibleDistro = distros
 				.Select(distro => new WSLShell(distro) { Debug = Debug })
@@ -121,13 +122,21 @@ cat ~/.rpmmacros"
 
 			if (shell.Find("rpmlint") != null) shell.Exec($"rpmlint {homeSpecFile}");
 
-			var rpmbuildShell = shell.Clone;
-			rpmbuildShell.Parent = null;
+			Debugger.Launch();
+
+			var rpmbuildShell = shell.SilentClone;
 			rpmbuildShell.Redirect = false;
 			var logOutput = (Action<string>)(msg =>
 			{
-				if (msg.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) shell.LogError?.Invoke(msg);
-				else shell.LogOutput?.Invoke(msg);
+				shell.LogOutput?.Invoke(msg);
+				var match = Regex.Match(msg, @"^error:\s*(?:line\s+(?<line>[0-9]+)\s*:|(?<category>[^:]+)\s*:)?(?<text>.*)$");
+				if (match.Success)
+				{
+					string origin;
+					if (match.Groups["line"].Success) origin = $"{Path.GetFileName(specFile)}({match.Groups["line"].Value})";
+					else origin = "wpkg";
+					shell.LogError($"{origin}: rpmbuild error WPKG01: {match.Groups["text"].Value}");
+				}
 			});
 			rpmbuildShell.LogError += logOutput;
 			rpmbuildShell.LogOutput += logOutput;
