@@ -105,8 +105,13 @@ namespace WindowsPackager
 
 			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
 			else shell.Exec(@"
-mkdir -p ~/rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
-        
+mkdir -p ~/rpmbuild/RPMS
+mkdir -p ~/rpmbuild/SRPMS
+mkdir -p ~/rpmbuild/BUILD
+mkdir -p ~/rpmbuild/SOURCES
+mkdir -p ~/rpmbuild/SPECS
+mkdir -p ~/rpmbuild/tmp
+                
 cat <<EOF >~/.rpmmacros
 %_topdir   %(echo $HOME)/rpmbuild
 %_tmppath  %{_topdir}/tmp
