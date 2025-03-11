@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
@@ -238,7 +239,7 @@ cat ~/.rpmmacros"
 			string TarballName = "data.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
 			Stream tarballStream = new TarOutputStream(outStream);
-			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream);
+			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
 			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
 
@@ -284,7 +285,7 @@ cat ~/.rpmmacros"
 			string TarballName = "control.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
 			Stream tarballStream = new TarOutputStream(outStream);
-			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream);
+			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
 			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
 
