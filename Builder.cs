@@ -238,7 +238,7 @@ cat ~/.rpmmacros"
 			//Console.WriteLine($"Tar {directory} to data.tar");
 			string TarballName = "data.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
-			Stream tarballStream = new TarOutputStream(outStream);
+			Stream tarballStream = new TarOutputStream(outStream, Encoding.UTF8);
 			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
 			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
@@ -284,7 +284,7 @@ cat ~/.rpmmacros"
 			//Console.WriteLine($"Tar {directory} to control.tar");
 			string TarballName = "control.tar";
 			Stream outStream = File.Create(directory + "\\" + TarballName);
-			Stream tarballStream = new TarOutputStream(outStream);
+			Stream tarballStream = new TarOutputStream(outStream, Encoding.UTF8);
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
 			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
