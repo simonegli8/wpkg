@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "wpkg": {
-      "commandName": "Project",
-      "commandLineArgs": "-rd \"..\\HostPanelPro.Installer\\Sources\\HostPanelPro.InstallPackages\\Fedora\"",
-      "workingDirectory": "C:\\GitHub\\WebHostingCP\\HostPanelPro"
-    }
-  }
-}
