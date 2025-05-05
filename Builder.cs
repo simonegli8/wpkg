@@ -72,7 +72,6 @@ namespace WindowsPackager
 					.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
 				shell = rpmCompatibleDistro;
 			}
-			else shell = null;
 
 			if (shell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
 			shell.Redirect = true;
