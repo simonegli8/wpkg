@@ -59,15 +59,21 @@ namespace WindowsPackager
 		{
 			WSLShell.Default.Debug = Debug;
 
-			var distros = WSLShell.Default.InstalledDistros;
-			var distroNames = distros.Select(distro => distro.ToString());
+			var shell = new WSLShell(WSLShell.Distro.Default);
+			if (shell.Find("rpmbuild") == null)
+			{
+				var distros = WSLShell.Default.InstalledDistros;
+				var distroNames = distros.Select(distro => distro.ToString());
 
-			if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(", ", distroNames)}");
+				if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(", ", distroNames)}");
 
-			var rpmCompatibleDistro = distros
-				.Select(distro => new WSLShell(distro) { Debug = Debug })
-				.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
-			var shell = rpmCompatibleDistro;
+				var rpmCompatibleDistro = distros
+					.Select(distro => new WSLShell(distro) { Debug = Debug })
+					.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
+				shell = rpmCompatibleDistro;
+			}
+			else shell = null;
+
 			if (shell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
 			shell.Redirect = true;
 			Console.WriteLine($"Found WSL distro with rpmbuild installed: {shell.CurrentDistroName}");
