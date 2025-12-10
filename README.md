@@ -15,6 +15,9 @@ __PLEASE READ THROUGH THE WIKI ([HERE](https://github.com/mass1ve-err0r/wpkg/wik
 ## Features
 - Creation of `.deb` files
 - Extraction of `.deb` files
+- Creation of `.rpm` files with the aid of a WSL distro with rpmbuild installed
+- Conversion of text files from DOS to UNIX format
+
 - Custom triggers
 	- `--theme` to quickly create a skeleton base for creating themes
 	- More can be added to the official wpkg! (To request, feel free to create an issue or just recompile it yourself!)

@@ -67,7 +67,7 @@ namespace WindowsPackager
             // deeper extraction for the tarballs
             if(variant == 2 ||variant == 3) {
                 Stream inStream = File.OpenRead(Path.Combine(OutPath, fn));
-                TarArchive InnerTarball = TarArchive.CreateInputTarArchive(inStream);
+                TarArchive InnerTarball = TarArchive.CreateInputTarArchive(inStream, Encoding.UTF8);
                 Directory.CreateDirectory(fdir);
                 InnerTarball.ExtractContents(fdir);
                 InnerTarball.Close();
