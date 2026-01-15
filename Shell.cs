@@ -15,7 +15,7 @@ using static System.Net.Mime.MediaTypeNames;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace SolidCP.Providers.OS
+namespace FuseCP.Providers.OS
 {
 
 	public abstract class Shell : INotifyCompletion

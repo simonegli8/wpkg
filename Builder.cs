@@ -7,7 +7,7 @@ using System.Diagnostics;
 using WindowsPackager.ARFileFormat;
 using ICSharpCode.SharpZipLib.Tar;
 using System.IO.Compression;
-using SolidCP.Providers.OS;
+using FuseCP.Providers.OS;
 
 namespace WindowsPackager
 {

@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 
-namespace SolidCP.Providers.OS
+namespace FuseCP.Providers.OS
 {
 	public enum WSLNetworkingMode { NAT, mirrored }
 	public class WSLShell : Shell
@@ -376,7 +376,7 @@ namespace SolidCP.Providers.OS
 					var config = base[section];
 					if (section == null)
 					{
-						var sectionType = Type.GetType($"SolidCP.Providers.OS.WSLShell.{section}Section, SolidCP.Providers.Base");
+						var sectionType = Type.GetType($"FuseCP.Providers.OS.WSLShell.{section}Section, FuseCP.Providers.Base");
 						if (sectionType != null) config = Activator.CreateInstance(sectionType) as ConfigurationSection;
 						else config = new ConfigurationSection();
 						base[section] = config;
