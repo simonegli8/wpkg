@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 
 namespace FuseCP.Providers.OS
 {
@@ -744,13 +745,12 @@ namespace FuseCP.Providers.OS
 
 		public new readonly static WSLShell Default = new WSLShell();
 
+        static bool? isOldVersion = null;
+        public static new bool IsOldVersion => isOldVersion ??= !Standard.Exec("wsl --version").Output().Result.Contains("WSL version:");
 #if wpkg
-		public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+        public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 #else
 		public static new bool IsWindows => OSInfo.IsWindows;
-		static bool? isOldVersion = null;
-		public static new bool IsOldVersion => isOldVersion ??= !Standard.Exec("wsl --version").Output().Result.Contains("WSL version:");
-
 #endif
 
 	}
