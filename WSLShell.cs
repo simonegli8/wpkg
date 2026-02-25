@@ -440,8 +440,8 @@ namespace HostPanelPro.Providers.OS
 			{
 				string user = "";
 				if (!string.IsNullOrEmpty(User)) user = $" --user {User}";
-				if (OSInfo.IsWindows) return "bash";
-				if (OSInfo.WindowsVersion == WindowsVersion.WindowsServer2019)
+				if (IsWindows) return "bash";
+				if (IsWindows2019)
 				{
 					return CurrentDistro == Distro.Default ? $"wsl{user} --exec" : $"wsl --distribution {CurrentDistroName}{user} --exec";
 				}
@@ -521,10 +521,12 @@ namespace HostPanelPro.Providers.OS
 			clone.CurrentDistro = distro;
 			return clone;
 		}
-		protected string WSLList {
+		protected string WSLList
+		{
 			get
 			{
-				if (IsWindows) {
+				if (IsWindows)
+				{
 					if (!IsWindows2019) return BaseShell.SilentClone.Exec($"wsl --list --verbose", Encoding.Unicode).Output().Result;
 					else return BaseShell.SilentClone.Exec($"wslconfig /l", Encoding.Unicode).Output().Result;
 				}
@@ -554,7 +556,7 @@ namespace HostPanelPro.Providers.OS
 						.Select(line => Regex.Match(line, @"^.*?(?=(?:\s*\(Default\))?\s*$)").Value)
 						.Select(name => (WSLDistro)name)
 						.ToArray();
-                }
+				}
 				return new[] { (WSLDistro)"unix" };
 			}
 		}
@@ -670,18 +672,14 @@ namespace HostPanelPro.Providers.OS
 			LogCommand?.Invoke($"bash {script}");
 
 			script = script.Trim();
-			// adjust new lines to OS type
-			script = Regex.Replace(script, @"\r?\n", System.Environment.NewLine);
 			var file = ToTempFile(script.Trim());
 			var shell = BaseShell.ExecAsync($"{ShellExe} \"{file}\"", encoding, environment);
 			if (shell.Process != null)
 			{
-				shell.Process.Exited += (sender, args) =>
-				{
-					file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
-						.Replace('/', Path.DirectorySeparatorChar);
-					File.Delete(file);
-				};
+                file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
+                    .Replace('/', Path.DirectorySeparatorChar);
+                shell.Process.Exited += (sender, args) => File.Delete(file);
+				if (shell.Process.HasExited && File.Exists(file)) File.Delete(file);
 			}
 			return shell;
 		}
@@ -750,10 +748,10 @@ namespace HostPanelPro.Providers.OS
 		public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 		public static new bool IsWindows2019 => RuntimeInformation.OSDescription.Contains("2019");
 #else
-        public static new bool IsWindows => OSInfo.IsWindows;
+		public static new bool IsWindows => OSInfo.IsWindows;
 		public static new bool IsWindows2019 => OSInfo.IsWindows && OSInfo.WindowsVersion == WindowsVersion.WindowsServer2019;
 
 #endif
 
-    }
+	}
 }
