@@ -441,7 +441,7 @@ namespace HostPanelPro.Providers.OS
 				string user = "";
 				if (!string.IsNullOrEmpty(User)) user = $" --user {User}";
 				if (IsWindows) return "bash";
-				if (IsWindows2019)
+				if (IsOldVersion)
 				{
 					return CurrentDistro == Distro.Default ? $"wsl{user} --exec" : $"wsl --distribution {CurrentDistroName}{user} --exec";
 				}
@@ -527,7 +527,7 @@ namespace HostPanelPro.Providers.OS
 			{
 				if (IsWindows)
 				{
-					if (!IsWindows2019) return BaseShell.SilentClone.Exec($"wsl --list --verbose", Encoding.Unicode).Output().Result;
+					if (!IsOldVersion) return BaseShell.SilentClone.Exec($"wsl --list --verbose", Encoding.Unicode).Output().Result;
 					else return BaseShell.SilentClone.Exec($"wslconfig /l", Encoding.Unicode).Output().Result;
 				}
 				return "";
@@ -541,12 +541,12 @@ namespace HostPanelPro.Providers.OS
 				{
 					if (base.Find("wsl") == null) return new WSLDistro[0];
 
-					if (!IsWindows2019) return Regex.Matches(WSLList, @"(?<=\n\*?\s+)[^\s]+")
+					if (!IsOldVersion) return Regex.Matches(WSLList, @"(?<=\n\*?\s+)[^\s]+")
 						.OfType<Match>()
 						.Select(match => (WSLDistro)match.Value)
 						.ToArray();
 
-					// Windows Server 2019
+					// Old WSL version
 					var list = WSLList;
 					if (list.Contains("Windows Subsystem for Linux has no installed distributions.")) return new WSLDistro[0];
 					return list.Split('\n')
@@ -746,10 +746,10 @@ namespace HostPanelPro.Providers.OS
 
 #if wpkg
 		public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-		public static new bool IsWindows2019 => RuntimeInformation.OSDescription.Contains("2019");
 #else
 		public static new bool IsWindows => OSInfo.IsWindows;
-		public static new bool IsWindows2019 => OSInfo.IsWindows && OSInfo.WindowsVersion == WindowsVersion.WindowsServer2019;
+		static bool? isOldVersion = null;
+		public static new bool IsOldVersion => isOldVersion ??= !Standard.Exec("wsl --version").Output().Result.Contains("WSL version:");
 
 #endif
 
