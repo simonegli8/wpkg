@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace HostPanelPro.Providers.OS
+namespace FuseCP.Providers.OS
 {
 	public enum WSLNetworkingMode { NAT, mirrored }
 	public class WSLShell : Shell
