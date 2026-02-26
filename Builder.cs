@@ -122,7 +122,8 @@ cat <<EOF >~/.rpmmacros
 %_topdir   %(echo $HOME)/rpmbuild
 %_tmppath  %{_topdir}/tmp
 EOF
-");
+
+cat tmp/.rpmmacros");
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
@@ -147,7 +148,7 @@ EOF
 			});
 			rpmbuildShell.LogError += logOutput;
 			rpmbuildShell.LogOutput += logOutput;
-
+			rpmbuildShell.WorkingDirectory = "/tmp";
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
 			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
