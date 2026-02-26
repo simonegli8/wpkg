@@ -121,7 +121,7 @@ mkdir -p tmp/rpmbuild/SPECS
 mkdir -p tmp/rpmbuild/tmp
                 
 cat <<EOF >tmp/.rpmmacros
-%_topdir   %(echo $HOME)/rpmbuild
+%_topdir   tmp/rpmbuild
 %_tmppath  %{_topdir}/tmp
 EOF
 
