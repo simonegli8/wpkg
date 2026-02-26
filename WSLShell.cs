@@ -656,13 +656,23 @@ namespace FuseCP.Providers.OS
 			return WSLPath(localTmp);
 		}
 
-		public override Shell ExecAsync(string command, Encoding encoding = null, Dictionary<string, string> environment = null)
+        static string QuoteWindowsArg(string arg)
+        {
+            if (string.IsNullOrEmpty(arg))
+                return "\"\"";
+
+            // Escape backslashes and quotes
+            arg = arg.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return $"\"{arg}\"";
+        }
+
+        public override Shell ExecAsync(string command, Encoding encoding = null, Dictionary<string, string> environment = null)
 		{
 			LogCommand?.Invoke(command);
 
 			if (IsWindows)
 			{
-				return BaseShell.ExecAsync($"{ShellExe} bash -c {command.Replace("\'", "'\\''")}", encoding, environment);
+				return BaseShell.ExecAsync($"{ShellExe} bash -lc {QuoteWindowsArg(command)}", encoding, environment);
 			}
 			else // System is already unix, do not use WSL
 			{
@@ -675,7 +685,7 @@ namespace FuseCP.Providers.OS
 
 			script = script.Trim();
 			var file = ToTempFile(script.Trim());
-			var shell = BaseShell.ExecAsync($"{ShellExe} bash \"{file}\"", encoding, environment);
+			var shell = BaseShell.ExecAsync($"{ShellExe} bash -lc \"{file}\"", encoding, environment);
 			if (shell.Process != null)
 			{
                 file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
