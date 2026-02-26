@@ -747,7 +747,7 @@ namespace FuseCP.Providers.OS
 		public new readonly static WSLShell Default = new WSLShell();
 
         static bool? isOldVersion = null;
-        public static new bool IsOldVersion => isOldVersion ??= !Standard.Exec("wsl --version").Output().Result.Contains("WSL version:");
+        public bool IsOldVersion => isOldVersion ??= !BaseShell.SilentClone.Exec("wsl --version", Encoding.Unicode).Output().Result.Contains("WSL version:");
 #if wpkg
         public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 #else
