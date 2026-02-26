@@ -441,7 +441,6 @@ namespace FuseCP.Providers.OS
 			{
 				string user = "";
 				if (!string.IsNullOrEmpty(User)) user = $" --user {User}";
-				if (IsWindows) return "bash";
 				if (IsOldVersion)
 				{
 					return CurrentDistro == Distro.Default ? $"wsl{user} --exec" : $"wsl --distribution {CurrentDistroName}{user} --exec";
