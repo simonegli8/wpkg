@@ -567,7 +567,9 @@ namespace FuseCP.Providers.OS
 			"unix";
 		public bool IsInstalled(WSLDistro distro) => !IsWindows || Regex.IsMatch(WSLList, $@"^\*?\s+{Regex.Escape(distro)}\s", RegexOptions.IgnoreCase | RegexOptions.Multiline);
 		public bool IsInstalledAny() => !IsWindows || IsWslInstalled && InstalledDistros.Length > 0;
-		public bool IsInstalled() => !IsWindows || IsInstalled(CurrentDistroName);
+		public bool IsInstalled() => !IsWindows || 
+			(CurrentDistro.Distro == Distro.Default && IsInstalledAny()) ||
+			IsInstalled(CurrentDistroName);
 		public void UpdateWsl() => BaseShell.Exec("wsl --update", Encoding.Unicode);
 		public void ShutdownAll()
 		{

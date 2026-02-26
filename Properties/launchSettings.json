@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "net10": {
+      "commandName": "Project",
+      "commandLineArgs": "-rd C:\\GitHub\\WebHostingCP\\HostPanelPro.Installer\\Sources\\HostPanelPro.InstallPackages\\Fedora"
+    },
+  }
+}

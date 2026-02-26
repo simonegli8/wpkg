@@ -110,7 +110,7 @@ namespace WindowsPackager
 			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
 			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
-			else shell.Exec(@"
+			else shell.ExecScript(@"
 mkdir -p ~/rpmbuild/RPMS
 mkdir -p ~/rpmbuild/SRPMS
 mkdir -p ~/rpmbuild/BUILD
@@ -123,8 +123,7 @@ cat <<EOF >~/.rpmmacros
 %_tmppath  %{_topdir}/tmp
 EOF
 
-cat ~/.rpmmacros"
-			.Replace(Environment.NewLine, "\n"));
+cat ~/.rpmmacros");
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
