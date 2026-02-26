@@ -675,7 +675,7 @@ namespace FuseCP.Providers.OS
 
 			script = script.Trim();
 			var file = ToTempFile(script.Trim());
-			var shell = BaseShell.ExecAsync($"{ShellExe} \"{file}\"", encoding, environment);
+			var shell = BaseShell.ExecAsync($"{ShellExe} bash \"{file}\"", encoding, environment);
 			if (shell.Process != null)
 			{
                 file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
