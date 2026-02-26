@@ -106,8 +106,8 @@ namespace WindowsPackager
 			File.Delete($"{WorkingDirectory}\\data.tar");
 			File.Delete($"{WorkingDirectory}\\data.tar.gz");
 
-			var homeSpecFile = specFile.Replace(WorkingDirectory, "~/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
-			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSpecFile = specFile.Replace(WorkingDirectory, "/home/$USER/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSrcFile = srcFile.Replace(WorkingDirectory, "/home/$USER/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
 			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
 			else shell.ExecScript(@"
@@ -151,7 +151,7 @@ cat ~/.rpmmacros");
 
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
-			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
+			shell.Exec($@"cp -r /home/$USER/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
 
 			var rpmsDir = WorkingDirectory + "\\RPMS";
 			if (Directory.Exists(rpmsDir))
