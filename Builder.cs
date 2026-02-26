@@ -148,7 +148,6 @@ cat tmp/.rpmmacros");
 			});
 			rpmbuildShell.LogError += logOutput;
 			rpmbuildShell.LogOutput += logOutput;
-			rpmbuildShell.WorkingDirectory = "/tmp";
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
 			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
