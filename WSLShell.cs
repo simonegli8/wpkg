@@ -662,7 +662,7 @@ namespace FuseCP.Providers.OS
 
 			if (IsWindows)
 			{
-				return BaseShell.ExecAsync($"{ShellExe} {command}", encoding, environment);
+				return BaseShell.ExecAsync($"{ShellExe} bash -c {command.Replace("\'", "'\\''")}", encoding, environment);
 			}
 			else // System is already unix, do not use WSL
 			{

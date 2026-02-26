@@ -106,26 +106,23 @@ namespace WindowsPackager
 			File.Delete($"{WorkingDirectory}\\data.tar");
 			File.Delete($"{WorkingDirectory}\\data.tar.gz");
 
-			var homeSpecFile = specFile.Replace(WorkingDirectory, "tmp/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
-			var homeSrcFile = srcFile.Replace(WorkingDirectory, "tmp/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSpecFile = specFile.Replace(WorkingDirectory, "~/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
+			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
 
-			//if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
+			if (shell.Find("rpmdev-setuptree") != null) shell.Exec("rpmdev-setuptree");
 			shell.ExecScript(@"
-mkdir -p tmp/wpkg
-
-mkdir -p tmp/rpmbuild/RPMS
-mkdir -p tmp/rpmbuild/SRPMS
-mkdir -p tmp/rpmbuild/BUILD
-mkdir -p tmp/rpmbuild/SOURCES
-mkdir -p tmp/rpmbuild/SPECS
-mkdir -p tmp/rpmbuild/tmp
+mkdir -p ~/rpmbuild/RPMS
+mkdir -p ~/rpmbuild/SRPMS
+mkdir -p ~/rpmbuild/BUILD
+mkdir -p ~/rpmbuild/SOURCES
+mkdir -p ~/rpmbuild/SPECS
+mkdir -p ~/rpmbuild/tmp
                 
-cat <<EOF >tmp/.rpmmacros
-%_topdir   tmp/rpmbuild
+cat <<EOF >~/.rpmmacros
+%_topdir   %(echo $HOME)/rpmbuild
 %_tmppath  %{_topdir}/tmp
 EOF
-
-cat tmp/.rpmmacros");
+");
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
@@ -153,7 +150,7 @@ cat tmp/.rpmmacros");
 
 			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
 
-			shell.Exec($@"cp -r /home/$USER/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
+			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
 
 			var rpmsDir = WorkingDirectory + "\\RPMS";
 			if (Directory.Exists(rpmsDir))
