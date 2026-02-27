@@ -1,5 +1,3 @@
-using FuseCP.Providers;
-using FuseCP.Providers.OS;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -778,9 +776,9 @@ namespace FuseCP.Providers.OS
 
                 var version = ReadTextFile("/proc/version");
 
-                if (version.Contains("Microsoft", StringComparison.OrdinalIgnoreCase))
+                if (version.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    if (version.Contains("microsoft-standard", StringComparison.OrdinalIgnoreCase))
+                    if (version.IndexOf("microsoft-standard", StringComparison.OrdinalIgnoreCase) >= 0)
                         //Console.WriteLine("Running inside WSL2");
                         return false;
                     else
@@ -806,9 +804,9 @@ namespace FuseCP.Providers.OS
 
                 var version = ReadTextFile("/proc/version");
 
-                if (version.Contains("Microsoft", StringComparison.OrdinalIgnoreCase))
+                if (version.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    if (version.Contains("microsoft-standard", StringComparison.OrdinalIgnoreCase))
+                    if (version.IndexOf("microsoft-standard", StringComparison.OrdinalIgnoreCase) >= 0)
                         //Console.WriteLine("Running inside WSL2");
                         return true;
                     else
