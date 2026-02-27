@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Runtime.InteropServices;
 
 namespace FuseCP.Providers.OS
 {
@@ -376,7 +376,7 @@ namespace FuseCP.Providers.OS
 					var config = base[section];
 					if (section == null)
 					{
-						var sectionType = Type.GetType($"HostPanelPro.Providers.OS.WSLShell.{section}Section, HostPanelPro.Providers.Base");
+						var sectionType = Type.GetType($"FuseCP.Providers.OS.WSLShell.{section}Section, FuseCP.Providers.Base");
 						if (sectionType != null) config = Activator.CreateInstance(sectionType) as ConfigurationSection;
 						else config = new ConfigurationSection();
 						base[section] = config;
@@ -441,6 +441,7 @@ namespace FuseCP.Providers.OS
 			{
 				string user = "";
 				if (!string.IsNullOrEmpty(User)) user = $" --user {User}";
+				if (IsWindows) return "bash";
 				if (IsOldVersion)
 				{
 					return CurrentDistro == Distro.Default ? $"wsl{user} --exec" : $"wsl --distribution {CurrentDistroName}{user} --exec";
@@ -566,9 +567,7 @@ namespace FuseCP.Providers.OS
 			"unix";
 		public bool IsInstalled(WSLDistro distro) => !IsWindows || Regex.IsMatch(WSLList, $@"^\*?\s+{Regex.Escape(distro)}\s", RegexOptions.IgnoreCase | RegexOptions.Multiline);
 		public bool IsInstalledAny() => !IsWindows || IsWslInstalled && InstalledDistros.Length > 0;
-		public bool IsInstalled() => !IsWindows || 
-			(CurrentDistro.Distro == Distro.Default && IsInstalledAny()) ||
-			IsInstalled(CurrentDistroName);
+		public bool IsInstalled() => !IsWindows || IsInstalled(CurrentDistroName);
 		public void UpdateWsl() => BaseShell.Exec("wsl --update", Encoding.Unicode);
 		public void ShutdownAll()
 		{
@@ -656,23 +655,13 @@ namespace FuseCP.Providers.OS
 			return WSLPath(localTmp);
 		}
 
-        static string QuoteWindowsArg(string arg)
-        {
-            if (string.IsNullOrEmpty(arg))
-                return "\"\"";
-
-            // Escape backslashes and quotes
-            arg = arg.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            return $"\"{arg}\"";
-        }
-
-        public override Shell ExecAsync(string command, Encoding encoding = null, Dictionary<string, string> environment = null)
+		public override Shell ExecAsync(string command, Encoding encoding = null, Dictionary<string, string> environment = null)
 		{
 			LogCommand?.Invoke(command);
 
 			if (IsWindows)
 			{
-				return BaseShell.ExecAsync($"{ShellExe} bash -lc {QuoteWindowsArg(command)}", encoding, environment);
+				return BaseShell.ExecAsync($"{ShellExe} {command}", encoding, environment);
 			}
 			else // System is already unix, do not use WSL
 			{
@@ -685,12 +674,12 @@ namespace FuseCP.Providers.OS
 
 			script = script.Trim();
 			var file = ToTempFile(script.Trim());
-			var shell = BaseShell.ExecAsync($"{ShellExe} bash -lc \"{file}\"", encoding, environment);
+			var shell = BaseShell.ExecAsync($"{ShellExe} \"{file}\"", encoding, environment);
 			if (shell.Process != null)
 			{
-                file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
-                    .Replace('/', Path.DirectorySeparatorChar);
-                shell.Process.Exited += (sender, args) => File.Delete(file);
+				file = Regex.Replace(file, "^/mnt/(?<drive>[a-zA-Z])/", m => m.Groups["drive"].Value.ToUpper() + ":\\")
+					.Replace('/', Path.DirectorySeparatorChar);
+				shell.Process.Exited += (sender, args) => File.Delete(file);
 				if (shell.Process.HasExited && File.Exists(file)) File.Delete(file);
 			}
 			return shell;
@@ -756,8 +745,8 @@ namespace FuseCP.Providers.OS
 
 		public new readonly static WSLShell Default = new WSLShell();
 
-        static bool? isOldVersion = null;
-        public bool IsOldVersion => isOldVersion ??= !BaseShell.SilentClone.Exec("wsl --version", Encoding.Unicode).Output().Result.Contains("WSL version:");
+		static bool? isOldVersion = null;
+		public static new bool IsOldVersion => isOldVersion ??= !Standard.Exec("wsl --version").Output().Result.Contains("WSL version:");
 #if wpkg
         public static new bool IsWindows => RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 #else
