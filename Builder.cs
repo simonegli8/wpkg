@@ -123,7 +123,7 @@ cat <<EOF >~/.rpmmacros
 %_tmppath  %{_topdir}/tmp
 EOF
 
-cat tmp/.rpmmacros");
+cat ~/.rpmmacros");
 
 			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
 			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
