@@ -1,3 +1,7 @@
 <Solution>
-  <Project Path="wpkg.csproj" />
+  <Folder Name="/Scripts/">
+    <File Path="CreatePackages.bat" />
+    <File Path="PushToNuget.bat" />
+  </Folder>
+  <Project Path="src/wpkg.csproj" />
 </Solution>

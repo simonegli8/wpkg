@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "net10": {
+      "commandName": "Project",
+      "commandLineArgs": "-rd C:\\GitHub\\WebHostingCP\\HostPanelPro.Installer\\Sources\\HostPanelPro.InstallPackages\\Fedora"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "commandLineArgs": "/mnt/c/GitHub/wpkg/src/bin/Debug/net10.0/wpkg.dll -b /mnt/c/GitHub/WebHostingCP/HostPanelPro.Installer/Sources/HostPanelPro.InstallPackages/Debian"
+    }
+
+  }
+}

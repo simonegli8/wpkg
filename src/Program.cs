@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace WindowsPackager
 {
@@ -57,9 +59,23 @@ namespace WindowsPackager
 
 		static void Main(string[] args)
 		{
+			if (args.Contains("-debug"))
+			{
+				Console.WriteLine("Waiting for Debugger to attach...");
+				while (!Debugger.IsAttached)
+				{
+					Thread.Sleep(50);
+				}
+			}
+
 			var cwd = Environment.CurrentDirectory;
 			Environment.CurrentDirectory = Path.GetPathRoot(cwd);
 			Environment.CurrentDirectory = GetCaseSensitivePath(cwd);
+
+			if (args.Length > 1 && args[0].EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+			{
+				args = args.Skip(1).ToArray();
+			}
 
 			// check because switch
 			if (args.Length == 0)
@@ -146,9 +162,9 @@ namespace WindowsPackager
 						}
 						else
 						{
-							if (File.Exists(LOCAL_DIR + "\\" + args[1]))
+							if (File.Exists(Path.Combine(LOCAL_DIR, args[1])))
 							{
-								ExtractorType(LOCAL_DIR + "\\" + args[1], args[1], null);
+								ExtractorType(Path.Combine(LOCAL_DIR, args[1]), args[1], null);
 							}
 							else
 							{
@@ -163,11 +179,11 @@ namespace WindowsPackager
 						ExitWithMessage(ERRMSG_ARGC_FAILURE, EXIT_ARGS_MISMATCH);
 					}
 					// create base theme dir
-					string target = LOCAL_DIR + "\\Library\\Themes\\" + args[1] + ".theme";
+					string target =Path.Combine(LOCAL_DIR, "Library", "Themes", args[1] + ".theme");
 					Directory.CreateDirectory(target);
 					// create the necessary subdirs
-					Directory.CreateDirectory(target + "\\IconBundles");
-					Directory.CreateDirectory(target + "\\Bundles\\com.apple.springboard");
+					Directory.CreateDirectory(Path.Combine(target, "IconBundles"));
+					Directory.CreateDirectory(Path.Combine(target, "Bundles", "com.apple.springboard"));
 					GenerateControlFile(LOCAL_DIR);
 					break;
 				case HELPTEXT:
@@ -227,7 +243,7 @@ namespace WindowsPackager
 				passed++;
 			}
 			// check if we have a control file
-			if (File.Exists(directory + "\\DEBIAN\\control"))
+			if (File.Exists(Path.Combine(directory, "DEBIAN", "control")))
 			{
 				passed++;
 			}
@@ -240,7 +256,7 @@ namespace WindowsPackager
 
 		private static void GenerateControlFile(string WorkingDir)
 		{
-			File.WriteAllLines(WorkingDir + "\\control", ControlElements, Encoding.ASCII);
+			File.WriteAllLines(Path.Combine(WorkingDir, "control"), ControlElements, Encoding.ASCII);
 		}
 
 		public static void ExitWithMessage(string Message, int ExitCode)
@@ -261,9 +277,15 @@ namespace WindowsPackager
 				 "wpkg -r <Path>     - Build .rpm in the given path.\n" +
 				 "wpkg -rd <Path>    - Build .rpm in the given path, and show debug\n" +
 				 "                     output\n" +
-				 "  For rpm creation:" +
-				 "  The .spec file must reside in the SPECS folder. For this to\n" +
-				 "	 work, you need to have an WSL distro with rpmbuild installed.\n",
+				 "  For rpm creation:\n" +
+				 "  There must be a SPECS folder with a .spec file isnide in the working directory\n" +
+				 "  The rest of the directory should reflect the desired content of the rpm file.\n" +
+				 "  For this to work, you need to have rpmbuild installed either in your OS or\n" +
+				 "  when running on Windows in a WSL distro.\n" +
+				 "  For deb creation:\n" +
+				 "  There must be a DEBIAN folder containing the control file and possibly other files.\n" +
+				 "  The rest of the directory should reflect the desired content of the deb file.\n" +
+				 ".\n",
 				 ConsoleColor.DarkCyan);
 			ColorizedMessage("Extraction:\n" +
 				 "wpkg -x <PathToDeb> <DestFolder>   - Extract .deb to given path\n" +

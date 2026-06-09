@@ -49,10 +49,10 @@ namespace WindowsPackager
                 fn = "debian-binary";
             } else if (variant == 2) /*control.tar*/ {
                 fn = "control.tar";
-                fdir = OutPath + "\\" + DebName + "_control.tar_CONTENT";
+                fdir = Path.Combine(OutPath, DebName + "_control.tar_CONTENT");
             } else if (variant == 3) /*data.tar*/ {
                 fn = "data.tar";
-                fdir = OutPath + "\\" + DebName + "_data.tar_CONTENT";
+                fdir = Path.Combine(OutPath, DebName + "_data.tar_CONTENT");
             }
 
             // extractor
@@ -73,9 +73,9 @@ namespace WindowsPackager
                 InnerTarball.Close();
                 inStream.Close();
 
-                File.Delete(OutPath + "\\control.tar");
-                File.Delete(OutPath + "\\data.tar");
-                File.Delete(OutPath + "\\debian-binary");
+                File.Delete(Path.Combine(OutPath, "control.tar"));
+                File.Delete(Path.Combine(OutPath, "data.tar"));
+                File.Delete(Path.Combine(OutPath, "debian-binary"));
             }
         }
     }

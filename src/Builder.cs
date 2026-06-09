@@ -7,7 +7,6 @@ using System.Diagnostics;
 using WindowsPackager.ARFileFormat;
 using ICSharpCode.SharpZipLib.Tar;
 using System.IO.Compression;
-using FuseCP.Providers.OS;
 
 namespace WindowsPackager
 {
@@ -30,8 +29,9 @@ namespace WindowsPackager
 		private const int EXIT_SPEC_ERROR = 600;
 		private const int EXIT_NAME_ERROR = 700;
 		private const int EXIT_WSL_ERROR = 800;
+        private const int EXIT_NORPMBUILD_ERROR = 900;
 
-		public static bool Debug { get; set; } = false;
+        public static bool Debug { get; set; } = false;
 		public static void Dos2Unix(string[] files)
 		{
 			foreach (var file in files)
@@ -48,31 +48,41 @@ namespace WindowsPackager
 			}
 		}
 
-		private static string WSLPath(string path) => Regex.Replace(Path.GetFullPath(path), "^(?<drive>[A-Z]):",
+        /*private static string WSLPath(string path) => Regex.Replace(Path.GetFullPath(path), "^(?<drive>[A-Z]):",
 			match => $"/mnt/{match.Groups["drive"].Value.ToLower()}", RegexOptions.IgnoreCase | RegexOptions.Singleline)
-			.Replace(Path.DirectorySeparatorChar, '/');
+			.Replace(Path.DirectorySeparatorChar, '/');*/
 
-		private static void LogRpmBuildOutput(string msg, Shell shell)
+        private static void LogRpmBuildOutput(string msg, Shell shell)
 		{
 		}
 		public static void BuildRPMPackage(string PathToPackage)
 		{
 			WSLShell.Default.Debug = Debug;
+			WSLShell shell = null;
 
-			var shell = new WSLShell(WSLShell.Distro.Default);
-			if (shell.Find("rpmbuild") == null)
+			if (Shell.IsWindows)
 			{
-				var distros = WSLShell.Default.InstalledDistros;
-				var distroNames = distros.Select(distro => distro.ToString());
+				shell = new WSLShell(WSLDistros.Default);
+				if (shell.Find("rpmbuild") == null)
+				{
+					var distros = WSLShell.Default.InstalledDistros;
+					var distroNames = distros.Select(distro => distro.ToString());
 
-				if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(", ", distroNames)}");
+					if (Debug) Console.WriteLine($"Installed WSL distros: {string.Join(", ", distroNames)}");
 
-				var rpmCompatibleDistro = distros
-					.Select(distro => new WSLShell(distro) { Debug = Debug })
-					.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
-				shell = rpmCompatibleDistro;
+					var rpmCompatibleDistro = distros
+						.Select(distro => new WSLShell(distro) { Debug = Debug })
+						.FirstOrDefault(wsl => wsl.Find("rpmbuild") != null);
+					shell = rpmCompatibleDistro;
+				}
+			} else
+			{
+				shell = new WSLShell(WSLDistros.Native);
+				if (shell.Find("rpmbuild") == null)
+				{
+					Program.ExitWithMessage("rpmbuild not installed.", EXIT_NORPMBUILD_ERROR);
+				}
 			}
-
 			if (shell == null) Program.ExitWithMessage(ERRMSG_WSL_FAILURE, EXIT_WSL_ERROR);
 			shell.Redirect = true;
 			Console.WriteLine($"Found WSL distro with rpmbuild installed: {shell.CurrentDistroName}");
@@ -87,7 +97,7 @@ namespace WindowsPackager
 			{
 				WorkingDirectory = PathToPackage;
 			}
-			var specFile = Directory.EnumerateFiles(WorkingDirectory + "\\SPECS", "*.spec").FirstOrDefault();
+			var specFile = Directory.EnumerateFiles(Path.Combine(WorkingDirectory, "SPECS"), "*.spec").FirstOrDefault();
 			if (specFile == null) Program.ExitWithMessage(ERRMSG_SPEC_FAILURE, EXIT_SPEC_ERROR);
 			var spec = File.ReadAllText(specFile);
 			var packageName = Regex.Match(spec, "(?<=^Name:\\s*).*$", RegexOptions.Multiline)?.Value.Trim();
@@ -96,15 +106,15 @@ namespace WindowsPackager
 
 			BuildDataTarball(WorkingDirectory, $"{packageName}-{packageVersion}/");
 
-			var srcFile = $"{WorkingDirectory}\\{packageName}-{packageVersion}.tar.gz";
+			var srcFile = Path.Combine(WorkingDirectory, $"{packageName}-{packageVersion}.tar.gz");
 			using (var DataAsStream = CreateStream(WorkingDirectory, 1))
 			using (var pkg = File.Create(srcFile))
 			{
 				DataAsStream.CopyTo(pkg);
 			}
 
-			File.Delete($"{WorkingDirectory}\\data.tar");
-			File.Delete($"{WorkingDirectory}\\data.tar.gz");
+			File.Delete(Path.Combine(WorkingDirectory, "data.tar"));
+			File.Delete(Path.Combine(WorkingDirectory, "data.tar.gz"));
 
 			var homeSpecFile = specFile.Replace(WorkingDirectory, "~/rpmbuild").Replace(Path.DirectorySeparatorChar, '/');
 			var homeSrcFile = srcFile.Replace(WorkingDirectory, "~/rpmbuild/SOURCES").Replace(Path.DirectorySeparatorChar, '/');
@@ -125,12 +135,12 @@ EOF
 
 cat ~/.rpmmacros");
 
-			shell.Exec($@"cp ""{WSLPath(specFile)}"" {homeSpecFile}");
-			shell.Exec($@"cp ""{WSLPath(srcFile)}"" {homeSrcFile}");
+			shell.ExecScript($@"cp ""{shell.WSLPath(specFile)}"" {homeSpecFile}");
+			shell.ExecScript($@"cp ""{shell.WSLPath(srcFile)}"" {homeSrcFile}");
 
 			File.Delete(srcFile);
 
-			if (shell.Find("rpmlint") != null) shell.Exec($"rpmlint {homeSpecFile}");
+			if (shell.Find("rpmlint") != null) shell.ExecScript($"rpmlint {homeSpecFile}");
 
 			var rpmbuildShell = shell.SilentClone;
 			rpmbuildShell.Redirect = false;
@@ -148,11 +158,11 @@ cat ~/.rpmmacros");
 			});
 			rpmbuildShell.LogError += logOutput;
 			rpmbuildShell.LogOutput += logOutput;
-			rpmbuildShell.Exec($"rpmbuild -bb {homeSpecFile}");
+			rpmbuildShell.ExecScript($"rpmbuild -bb {homeSpecFile}");
 
-			shell.Exec($@"cp -r ~/rpmbuild/RPMS/* ""{WSLPath($"{WorkingDirectory}\\RPMS")}""");
+			shell.ExecScript($@"cp -r ~/rpmbuild/RPMS/* ""{shell.WSLPath(Path.Combine(WorkingDirectory, "RPMS"))}""");
 
-			var rpmsDir = WorkingDirectory + "\\RPMS";
+			var rpmsDir = Path.Combine(WorkingDirectory, "RPMS");
 			if (Directory.Exists(rpmsDir))
 			{
 				foreach (var rpmfile in Directory.EnumerateFiles(rpmsDir, "*.rpm", SearchOption.AllDirectories))
@@ -192,7 +202,7 @@ cat ~/.rpmmacros");
 			ARFileCreator.WriteEntry(DebFileStream, "control.tar.gz", ArFileMode, ControlAsStream);
 			ARFileCreator.WriteEntry(DebFileStream, "data.tar.gz", ArFileMode, DataAsStream);
 
-			var fs = File.Create(WorkingDirectory + "\\" + DebFileName);
+			var fs = File.Create(Path.Combine(WorkingDirectory, DebFileName));
 			DebFileStream.Seek(0, SeekOrigin.Begin);
 			DebFileStream.CopyTo(fs);
 			fs.Close();
@@ -200,11 +210,11 @@ cat ~/.rpmmacros");
 			ControlAsStream.Close();
 			DataAsStream.Close();
 
-			File.Delete(WorkingDirectory + "\\control.tar");
-			File.Delete(WorkingDirectory + "\\data.tar");
-			File.Delete(WorkingDirectory + "\\control.tar.gz");
-			File.Delete(WorkingDirectory + "\\data.tar.gz");
-			File.Delete(WorkingDirectory + "\\debian-binary");
+			File.Delete(Path.Combine(WorkingDirectory, "control.tar"));
+			File.Delete(Path.Combine(WorkingDirectory, "data.tar"));
+			File.Delete(Path.Combine(WorkingDirectory, "control.tar.gz"));
+			File.Delete(Path.Combine(WorkingDirectory, "data.tar.gz"));
+			File.Delete(Path.Combine(WorkingDirectory, "debian-binary"));
 
 			Console.WriteLine($"Created {DebFileName}");
 		}
@@ -240,11 +250,11 @@ cat ~/.rpmmacros");
 
 			//Console.WriteLine($"Tar {directory} to data.tar");
 			string TarballName = "data.tar";
-			Stream outStream = File.Create(directory + "\\" + TarballName);
+			Stream outStream = File.Create(Path.Combine(directory, TarballName));
 			Stream tarballStream = new TarOutputStream(outStream, Encoding.UTF8);
 			TarArchive dataTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
-			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
+			Console.WriteLine($"Creating {Path.Combine(origDir, TarballName)}");
 
 			// fix str (mandatory hotfix due to SharpZipLib)
 			/* Console.WriteLine($"Current Directory: {Environment.CurrentDirectory}");
@@ -279,18 +289,18 @@ cat ~/.rpmmacros");
 			var origDir = directory;
 			directory = Program.GetCaseSensitivePath(Path.GetFullPath(directory));
 
-			var debdirectory = directory + "\\DEBIAN";
+			var debdirectory = Path.Combine(directory, "DEBIAN");
 
 			var cwd = Environment.CurrentDirectory;
 			Environment.CurrentDirectory = debdirectory;
 
 			//Console.WriteLine($"Tar {directory} to control.tar");
 			string TarballName = "control.tar";
-			Stream outStream = File.Create(directory + "\\" + TarballName);
+			Stream outStream = File.Create(Path.Combine(directory, TarballName));
 			Stream tarballStream = new TarOutputStream(outStream, Encoding.UTF8);
 			TarArchive controlTar = TarArchive.CreateOutputTarArchive(tarballStream, Encoding.UTF8);
 
-			Console.WriteLine($"Creating {origDir + "\\" + TarballName}");
+			Console.WriteLine($"Creating {Path.Combine(origDir, TarballName)}");
 
 			// fix str (mandatory hotfix due to SharpZipLib)
 			/* controlTar.RootPath = new DirectoryInfo(directory+"\\DEBIAN").FullName.Replace('\\', '/');
@@ -300,7 +310,7 @@ cat ~/.rpmmacros");
 			} */
 
 			// generate filename
-			var control = File.ReadAllText(debdirectory + "\\control");
+			var control = File.ReadAllText(Path.Combine(debdirectory, "control"));
 			DebFileName = Regex.Match(control, "(?<=^Package:\\s*)[^\\s]+.*$", RegexOptions.Multiline).Value.Trim() + ".deb";
 
 			// scan for eligible control.tar entries & add them
@@ -327,11 +337,11 @@ cat ~/.rpmmacros");
 			string WorkingType = "";
 			if (TypeOfStream == 0)
 			{
-				WorkingType = FileLocation + "\\control.tar";
+				WorkingType = Path.Combine(FileLocation, "control.tar");
 			}
 			else if (TypeOfStream == 1)
 			{
-				WorkingType = FileLocation + "\\data.tar";
+				WorkingType = Path.Combine(FileLocation, "data.tar");
 			}
 			else
 			{
@@ -362,7 +372,7 @@ cat ~/.rpmmacros");
 		{
 			try
 			{
-				Stream fs = File.OpenRead(LOCAL_DIR + "\\" + FileName);
+				Stream fs = File.OpenRead(Path.Combine(LOCAL_DIR, FileName));
 				return fs;
 			}
 			catch (FileNotFoundException)

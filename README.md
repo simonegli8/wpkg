@@ -1,5 +1,5 @@
 # Windows Packager - wpkg
-A kind of dpkg-deb for Windows, completely written in C#.
+A cross platform package creation tool, completely written in C#.
 
 ## Introduction
 If you own a device running iOS and it's jailbroken, you'll know that additional software ("Tweak" or "Theme") is distributed through iOS specific APT repositories and are packaged as `.deb` files.
@@ -23,24 +23,11 @@ __PLEASE READ THROUGH THE WIKI ([HERE](https://github.com/mass1ve-err0r/wpkg/wik
 	- More can be added to the official wpkg! (To request, feel free to create an issue or just recompile it yourself!)
 
 ## Installation Guide
-*--This is the recommended method so you can call it from anywhere. Else you'd have to add it to the Windows folder directly so it's visible globally--*
-
-1. Open a new Explorer Window, navigate to your Windows boot drive *(commonly "C")* and create a folder titled "_mytools". (The name is an arbitrary choice, just for good measure we keep it clear)
-	- The full path at the end should look like `C:\_mytools`
-2. Open the Start Menu and searh for `env`. It should suggest editing the environment variables.
-3. Once the Menu opens, select `Environment variables`.
-4. Under System variables, search for `PATH` and edit it.
-5. Add a new Entry
-	- An Entry in the `PATH` is always a path, so here our entry is `C:\_mytools`
-6. Now that we have added our folder to the `PATH`, you can now just download it, move it to our "_mytools" folder and Ta-DA! It's now accessible from the commandline like any other tool!
-7. Profit??
-
-## Download
-__! I CANNOT STRESS THIS ENOUGH: PLEASE READ THE WIKI IF YOU HAVE ANY ISSUES/ TROUBLES FIGURING OUT HOW THIS WORKS !__
-
-Link (stable release): [HERE](https://github.com/mass1ve-err0r/wpkg/releases/latest)
-
-Guide on commands: [HERE](https://github.com/mass1ve-err0r/wpkg/wiki/Command-Overview)
+To install wpkg first install [.NET SDK 10]() and then in a shell execute
+```
+dotnet tool install -g CrossPlatformPackager
+```
+You then can start wpkg from the command line.
 
 ## Thanks/ Credits
 - F. Carlier for dotnet-packaging - This was a tremendously good resource to study!
