@@ -23,7 +23,7 @@ __PLEASE READ THROUGH THE WIKI ([HERE](https://github.com/mass1ve-err0r/wpkg/wik
 	- More can be added to the official wpkg! (To request, feel free to create an issue or just recompile it yourself!)
 
 ## Installation Guide
-To install wpkg first install [.NET SDK 10]() and then in a shell execute
+To install wpkg first install [.NET SDK 10](https://get.dot.net/10) and then in a shell execute
 ```
 dotnet tool install -g CrossPlatformPackager
 ```
