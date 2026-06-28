@@ -452,7 +452,7 @@ public class WSLShell : Shell
             else return CurrentDistro == WSLDistros.Default ? $"wsl{user}" : $"wsl --distribution {CurrentDistroName}{user}";
         }
     }
-    public string User { get; set; } = null;
+    public new string User { get; set; } = null;
     public WSLShell() : base() => BaseShell = Shell.Standard.Clone;
     public WSLShell(WSLDistro distro) : this() => Use(distro);
 
