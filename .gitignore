@@ -64,3 +64,4 @@ bin/Release
 *.log
 
 NugetApiKey.txt
+nuget-api-key.txt
