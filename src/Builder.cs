@@ -158,9 +158,13 @@ cat ~/.rpmmacros");
 			});
 			rpmbuildShell.LogError += logOutput;
 			rpmbuildShell.LogOutput += logOutput;
+			// Only the packages of this build are wanted: the RPMS folder of rpmbuild keeps the ones of earlier builds (other packages, other architectures).
+			shell.ExecScript("rm -rf ~/rpmbuild/RPMS && mkdir -p ~/rpmbuild/RPMS");
 			rpmbuildShell.ExecScript($"rpmbuild -bb {homeSpecFile}");
 
-			shell.ExecScript($@"cp -r ~/rpmbuild/RPMS/* ""{shell.WSLPath(Path.Combine(WorkingDirectory, "RPMS"))}""");
+			// The target folder must exist: with more than one subfolder in RPMS (noarch, x86_64, ...) cp fails otherwise.
+			var rpmsTarget = shell.WSLPath(Path.Combine(WorkingDirectory, "RPMS"));
+			shell.ExecScript($@"mkdir -p ""{rpmsTarget}"" && cp -r ~/rpmbuild/RPMS/. ""{rpmsTarget}""");
 
 			var rpmsDir = Path.Combine(WorkingDirectory, "RPMS");
 			if (Directory.Exists(rpmsDir))

@@ -1,4 +1,4 @@
-SET PackageVersion=2.0.1
+SET PackageVersion=2.1.0
 SET Configuration=Debug
 
 del nupkg\*.nupkg
