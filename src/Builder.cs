@@ -160,7 +160,12 @@ cat ~/.rpmmacros");
 			rpmbuildShell.LogOutput += logOutput;
 			// Only the packages of this build are wanted: the RPMS folder of rpmbuild keeps the ones of earlier builds (other packages, other architectures).
 			shell.ExecScript("rm -rf ~/rpmbuild/RPMS && mkdir -p ~/rpmbuild/RPMS");
-			rpmbuildShell.ExecScript($"rpmbuild -bb {homeSpecFile}");
+			// The architecture of the package, when it is not the one of this machine (an aarch64 package made on a x86_64 machine): rpmbuild has to be told the target,
+			// and the spec cannot say it (BuildArch is for noarch only: rpmbuild and rpmlint stop with "No compatible architectures found for build" for another
+			// one). It is a line of the spec that is a comment for rpm: "# wpkg-target: aarch64".
+			var buildArch = Regex.Match(spec, "(?<=^#\\s*wpkg-target:\\s*)\\S+", RegexOptions.Multiline).Value.Trim();
+			var rpmTarget = !string.IsNullOrEmpty(buildArch) ? $" --target {buildArch}" : "";
+			rpmbuildShell.ExecScript($"rpmbuild -bb{rpmTarget} {homeSpecFile}");
 
 			// The target folder must exist: with more than one subfolder in RPMS (noarch, x86_64, ...) cp fails otherwise.
 			var rpmsTarget = shell.WSLPath(Path.Combine(WorkingDirectory, "RPMS"));
