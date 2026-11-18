@@ -223,6 +223,26 @@ cat ~/.rpmmacros");
 			Console.WriteLine($"Created {DebFileName}");
 		}
 
+		// A program outside of a bin folder (the native AOT build of an app in /usr/share/<app>, say) must be executable too. Files of a Windows drive have no
+		// execute permission to go by, so the content tells: an ELF binary (not a shared library, .so) or a script that starts with #!.
+		private static bool IsProgram(FileInfo file)
+		{
+			if (file.Name.EndsWith(".so") || file.Name.Contains(".so.")) return false;
+			try
+			{
+				var head = new byte[4];
+				using (var stream = file.OpenRead())
+				{
+					if (stream.Read(head, 0, 4) < 4) return false;
+				}
+				return (head[0] == 0x7F && head[1] == (byte)'E' && head[2] == (byte)'L' && head[3] == (byte)'F') || (head[0] == (byte)'#' && head[1] == (byte)'!');
+			}
+			catch (IOException)
+			{
+				return false;
+			}
+		}
+
 		public static void AddToTar(TarArchive arch, FileSystemInfo info, string prefix = "./")
 		{
 			TarEntry entry = TarEntry.CreateEntryFromFile(info.FullName);
@@ -234,7 +254,8 @@ cat ~/.rpmmacros");
 			entry.GroupName = "root";
 			if (info is FileInfo) {
 				if (entry.Name.Contains("/bin/") || info.FullName.EndsWith(".exe") ||
-					info.Name == "preinst" || info.Name == "postinst" || info.Name == "prerm" || info.Name == "postrm") entry.TarHeader.Mode = Convert.ToInt32("755", 8);
+					info.Name == "preinst" || info.Name == "postinst" || info.Name == "prerm" || info.Name == "postrm" ||
+					IsProgram((FileInfo)info)) entry.TarHeader.Mode = Convert.ToInt32("755", 8);
 				else entry.TarHeader.Mode = Convert.ToInt32("644", 8);
 			} else entry.TarHeader.Mode = Convert.ToInt32("755", 8);
 			Console.WriteLine($"  add {entry.Name}");
