@@ -1,0 +1,13 @@
+<Project>
+    <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <netlib>11.0.0</netlib>
+        <netlatest>net11.0</netlatest>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
+        <PackageVersion Include="SharpZipLib" Version="1.4.2" />
+    </ItemGroup>
+
+</Project>
